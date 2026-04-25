@@ -339,6 +339,9 @@ def _default_ui_en() -> dict[str, str]:
     return {
         "app.lang_toggle": "中文",
         "app.lang_label": "Language",
+        "app.theme_label": "Theme",
+        "app.theme_to_light": "Switch to light theme (T)",
+        "app.theme_to_dark": "Switch to dark theme (T)",
         "nav.brand": "DeepSeek-V4 Deconstruction Lab",
         "nav.curriculum": "Curriculum",
         "nav.stages": "Stages",

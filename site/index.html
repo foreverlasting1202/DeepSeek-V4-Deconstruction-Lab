@@ -1,9 +1,11 @@
 <!doctype html>
-<html lang="en" id="html-root">
+<html lang="en" id="html-root" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DeepSeek-V4 Deconstruction Lab</title>
+    <meta name="theme-color" content="#0a0a0d" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -11,19 +13,63 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
+    <script>
+      // Apply persisted theme synchronously so we don't flash the wrong palette.
+      (function () {
+        try {
+          var raw = localStorage.getItem("deepseek-v4-lab::v3");
+          var theme = raw ? (JSON.parse(raw).theme || "dark") : "dark";
+          if (theme !== "dark" && theme !== "light") theme = "dark";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) { /* localStorage unavailable: keep default */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="app">
       <aside class="sidebar" id="sidebar">
         <header class="sidebar__brand">
-          <div class="brand__logo">DS·V4</div>
+          <div class="brand__logo">DPSK</div>
           <div class="brand__text">
             <div class="brand__title" id="brand-title">DeepSeek-V4 Lab</div>
             <div class="brand__tagline" id="brand-tagline">Loading…</div>
           </div>
-          <button class="lang-toggle" id="lang-toggle" type="button" aria-label="Toggle language">
-            <span class="lang-toggle__label" id="lang-toggle-label">中文</span>
-          </button>
+          <div class="brand__actions">
+            <button
+              class="icon-btn icon-btn--theme"
+              id="theme-toggle"
+              type="button"
+              aria-label="Toggle theme"
+              title="Toggle theme"
+            >
+              <svg
+                class="icon-btn__sun"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+              </svg>
+              <svg
+                class="icon-btn__moon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            </button>
+            <button class="lang-toggle" id="lang-toggle" type="button" aria-label="Toggle language">
+              <span class="lang-toggle__label" id="lang-toggle-label">中文</span>
+            </button>
+          </div>
         </header>
 
         <nav class="sidebar__nav" id="stage-nav"></nav>

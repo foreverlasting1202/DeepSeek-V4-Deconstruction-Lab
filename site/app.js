@@ -10,9 +10,11 @@
 
   const STORAGE_KEY = "deepseek-v4-lab::v3";
   const SUPPORTED_LANGS = ["en", "zh"];
+  const SUPPORTED_THEMES = ["dark", "light"];
 
   const store = loadStore();
   let lang = SUPPORTED_LANGS.includes(store.lang) ? store.lang : "en";
+  let theme = SUPPORTED_THEMES.includes(store.theme) ? store.theme : "dark";
   let currentId = null;
 
   const interactiveSegments = DATA.segments.filter((s) => s.kind !== "gap");
@@ -39,6 +41,7 @@
     inspector: document.getElementById("inspector"),
     langToggle: document.getElementById("lang-toggle"),
     langToggleLabel: document.getElementById("lang-toggle-label"),
+    themeToggle: document.getElementById("theme-toggle"),
     placeholderTitle: document.getElementById("placeholder-title"),
     placeholderSubtitle: document.getElementById("placeholder-subtitle"),
   };
@@ -50,7 +53,7 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) return JSON.parse(raw);
     } catch {}
-    return { drafts: {}, completed: {}, lastOpened: null, mode: {}, lang: "en" };
+    return { drafts: {}, completed: {}, lastOpened: null, mode: {}, lang: "en", theme: "dark" };
   }
   function saveStore() {
     try {
@@ -108,6 +111,34 @@
     dom.body.dataset.lang = lang;
     if (dom.langToggleLabel) dom.langToggleLabel.textContent = t("app.lang_toggle");
     if (dom.langToggle) dom.langToggle.setAttribute("title", t("app.lang_label"));
+    if (dom.themeToggle) {
+      const titleKey = theme === "dark" ? "app.theme_to_light" : "app.theme_to_dark";
+      const label = t(titleKey, theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+      dom.themeToggle.setAttribute("title", label);
+      dom.themeToggle.setAttribute("aria-label", label);
+    }
+  }
+
+  /* ──────────────────────── theme ──────────────────────── */
+
+  function setTheme(newTheme) {
+    if (!SUPPORTED_THEMES.includes(newTheme)) return;
+    theme = newTheme;
+    store.theme = newTheme;
+    saveStore();
+    applyTheme();
+    applyLangToChrome();
+  }
+
+  function applyTheme() {
+    dom.htmlRoot.setAttribute("data-theme", theme);
+    if (dom.themeToggle) {
+      dom.themeToggle.setAttribute("aria-pressed", String(theme === "light"));
+    }
+  }
+
+  function toggleTheme() {
+    setTheme(theme === "dark" ? "light" : "dark");
   }
 
   /* ──────────────────────── chrome ──────────────────────── */
@@ -806,6 +837,7 @@
   }
 
   function boot() {
+    applyTheme();
     applyLangToChrome();
     renderAll();
 
@@ -820,6 +852,28 @@
         setLang(lang === "en" ? "zh" : "en");
       });
     }
+
+    if (dom.themeToggle) {
+      dom.themeToggle.addEventListener("click", toggleTheme);
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === "t") {
+        event.preventDefault();
+        toggleTheme();
+      } else if (key === "l") {
+        event.preventDefault();
+        setLang(lang === "en" ? "zh" : "en");
+      }
+    });
   }
 
   boot();

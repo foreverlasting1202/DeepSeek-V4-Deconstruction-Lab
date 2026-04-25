@@ -144,6 +144,9 @@ window.DEEPSEEK_V4_TUTORIAL = {
       "en": {
         "app.lang_toggle": "中文",
         "app.lang_label": "Language",
+        "app.theme_label": "Theme",
+        "app.theme_to_light": "Switch to light theme (T)",
+        "app.theme_to_dark": "Switch to dark theme (T)",
         "nav.brand": "DeepSeek-V4 Deconstruction Lab",
         "nav.curriculum": "Curriculum",
         "nav.stages": "Stages",
@@ -220,6 +223,9 @@ window.DEEPSEEK_V4_TUTORIAL = {
       "zh": {
         "app.lang_toggle": "English",
         "app.lang_label": "语言",
+        "app.theme_label": "主题",
+        "app.theme_to_light": "切换到浅色主题（T）",
+        "app.theme_to_dark": "切换到深色主题（T）",
         "nav.brand": "DeepSeek-V4 拆解实验室",
         "nav.curriculum": "课程大纲",
         "nav.stages": "阶段",

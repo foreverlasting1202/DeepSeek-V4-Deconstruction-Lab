@@ -12,6 +12,9 @@ from __future__ import annotations
 UI_ZH = {
     "app.lang_toggle": "English",
     "app.lang_label": "语言",
+    "app.theme_label": "主题",
+    "app.theme_to_light": "切换到浅色主题（T）",
+    "app.theme_to_dark": "切换到深色主题（T）",
     "nav.brand": "DeepSeek-V4 拆解实验室",
     "nav.curriculum": "课程大纲",
     "nav.stages": "阶段",
