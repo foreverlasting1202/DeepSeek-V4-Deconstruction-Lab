@@ -526,6 +526,9 @@ code, pre, kbd {
   border-radius: var(--radius-md);
   background: var(--bg-elev);
 }
+.hero__stat--source {
+  grid-column: span 2;
+}
 .hero__stat b {
   display: block;
   font-family: var(--mono);
@@ -534,6 +537,7 @@ code, pre, kbd {
   margin-bottom: 4px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
 }
 .hero__stat span {
   font-size: 11px;
@@ -1164,5 +1168,6 @@ code, pre, kbd {
   .main { padding: 24px 20px 64px; }
   .hero { padding: 26px 22px 22px; }
   .hero__title { font-size: 28px; }
+  .hero__stat--source { grid-column: 1 / -1; }
   .lesson__title { font-size: 24px; }
 }

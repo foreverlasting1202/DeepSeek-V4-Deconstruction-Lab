@@ -174,10 +174,10 @@
       }
       <div class="hero__stats">
         ${(DATA.meta.stats || [])
-          .map(
-            (stat) =>
-              `<div class="hero__stat"><b>${escapeHtml(stat.value)}</b><span>${escapeHtml(renderStatLabel(stat.label))}</span></div>`,
-          )
+          .map((stat) => {
+            const className = stat.label === "Source" ? "hero__stat hero__stat--source" : "hero__stat";
+            return `<div class="${className}"><b>${escapeHtml(stat.value)}</b><span>${escapeHtml(renderStatLabel(stat.label))}</span></div>`;
+          })
           .join("")}
       </div>
     `;
