@@ -1,0 +1,29 @@
+"""DeepSeek-V4 Lab — s02 Weight & Scale Layout [solution].
+
+Reference : model.py:123-150
+Variant   : solution (all blanks filled with reference values)
+"""
+block_size = 128
+fp4_block_size = 32
+
+class TorchStub:
+    float4_e2m1fn_x2 = "fp4"
+    float8_e4m3fn = "fp8"
+    bfloat16 = "bf16"
+
+torch = TorchStub()
+
+def ceildiv(x, y):
+    return (x + y - 1) // y
+
+def describe_linear_layout(in_features, out_features, dtype):
+    if dtype == torch.float4_e2m1fn_x2:
+        weight_shape = (out_features, in_features // 2)
+        scale_shape = (out_features, in_features // fp4_block_size)
+    elif dtype == torch.float8_e4m3fn:
+        weight_shape = (out_features, in_features)
+        scale_shape = (ceildiv(out_features, block_size), ceildiv(in_features, block_size))
+    else:
+        weight_shape = (out_features, in_features)
+        scale_shape = None
+    return weight_shape, scale_shape

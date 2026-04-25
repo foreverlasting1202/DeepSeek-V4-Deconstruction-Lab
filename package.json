@@ -1,0 +1,17 @@
+{
+  "name": "deepseek-v4-deconstruction-lab",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Interactive puzzle-first tutorial for DeepSeek-V4 model.py + kernel.py.",
+  "scripts": {
+    "build": "python3 tools/build_tutorial.py",
+    "dev": "python3 tools/build_tutorial.py && node site/dev-server.mjs",
+    "start": "node site/dev-server.mjs",
+    "test": "python3 tools/build_tutorial.py && python3 -m unittest tests.test_tutorial_build",
+    "check:all": "python3 tools/check_all_lessons.py"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

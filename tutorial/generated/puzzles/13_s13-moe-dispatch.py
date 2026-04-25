@@ -1,0 +1,26 @@
+"""DeepSeek-V4 Lab — s13 Sparse MoE Dispatch [puzzle].
+
+Reference : model.py:635-645
+Variant   : starter (all blanks default to placeholder values)
+"""
+def count_indices(routed):
+    counts = {}
+    for row in routed:
+        for expert_id in row:
+            counts[expert_id] = counts.get(expert_id, 0) + 1
+    return counts
+
+def moe_forward(inputs, routed, weights, experts, shared_expert):
+    outputs = [0.0 for _ in inputs]
+    counts = count_indices(routed)
+
+    for expert_id, expert_fn in experts.items():
+        if counts.get(expert_id, 0) == 0:
+            continue
+        positions = []
+        for t, k in positions:
+            outputs[t] += 0.0
+
+    for t, value in enumerate(inputs):
+        outputs[t] += shared_expert(value)
+    return outputs

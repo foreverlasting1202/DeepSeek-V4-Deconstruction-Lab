@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" id="html-root">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DeepSeek-V4 Deconstruction Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <aside class="sidebar" id="sidebar">
+        <header class="sidebar__brand">
+          <div class="brand__logo">DS·V4</div>
+          <div class="brand__text">
+            <div class="brand__title" id="brand-title">DeepSeek-V4 Lab</div>
+            <div class="brand__tagline" id="brand-tagline">Loading…</div>
+          </div>
+          <button class="lang-toggle" id="lang-toggle" type="button" aria-label="Toggle language">
+            <span class="lang-toggle__label" id="lang-toggle-label">中文</span>
+          </button>
+        </header>
+
+        <nav class="sidebar__nav" id="stage-nav"></nav>
+
+        <footer class="sidebar__foot">
+          <div class="progress" id="progress">
+            <div class="progress__bar" id="progress-bar"></div>
+            <div class="progress__label" id="progress-label">0 / 0 completed</div>
+          </div>
+          <button class="ghost-btn" id="reset-btn" type="button">Reset progress</button>
+        </footer>
+      </aside>
+
+      <main class="main">
+        <section class="hero" id="hero"></section>
+
+        <article class="lesson" id="lesson">
+          <div class="lesson__placeholder">
+            <h2 id="placeholder-title">Pick a session from the left to start.</h2>
+            <p id="placeholder-subtitle">Every lesson ships with runnable code, granular fill-in puzzles, and a local test runner.</p>
+          </div>
+        </article>
+      </main>
+
+      <aside class="inspector" id="inspector"></aside>
+    </div>
+
+    <script src="./assets/lessons-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
