@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s08 Compressor Prefill [solution].
 
-Reference : model.py:316-342
+Reference : DeepSeek_official/model.py:316-342
 Variant   : solution (all blanks filled with reference values)
 """
 def softmax(values):

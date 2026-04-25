@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s10-topk-merge (lesson)
 Title   : Window + Compressed Top-k
-Source  : model.py:507-516
+Source  : DeepSeek_official/model.py:507-516
 """
         topk_idxs = get_window_topk_idxs(win, bsz, seqlen, start_pos)
         if self.compress_ratio:

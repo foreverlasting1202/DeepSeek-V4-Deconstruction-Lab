@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s01-linear-dispatch (lesson)
 Title   : Linear Dispatch
-Source  : model.py:108-120
+Source  : DeepSeek_official/model.py:108-120
 """
 def linear(x: torch.Tensor, weight: torch.Tensor, bias: Optional[torch.Tensor] = None) -> torch.Tensor:
     """Dispatches to fp4_gemm / fp8_gemm / F.linear based on weight dtype.

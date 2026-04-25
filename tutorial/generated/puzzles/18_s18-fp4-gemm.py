@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s18 FP4 GEMM Scale Alignment [puzzle].
 
-Reference : kernel.py:441-515
+Reference : DeepSeek_official/kernel.py:441-515
 Variant   : starter (all blanks default to placeholder values)
 """
 def fp4_gemm(a, scales_a, b, scales_b, block_k=32, act_group_size=128):

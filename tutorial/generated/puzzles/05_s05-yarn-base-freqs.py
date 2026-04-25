@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s05 Base RoPE Frequencies [puzzle].
 
-Reference : model.py:220-220
+Reference : DeepSeek_official/model.py:220-220
 Variant   : starter (all blanks default to placeholder values)
 """
 def build_base_freqs(dim, base):

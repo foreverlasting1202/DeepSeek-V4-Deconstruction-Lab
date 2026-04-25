@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s11 Lightning Indexer Scoring [puzzle].
 
-Reference : model.py:418-427
+Reference : DeepSeek_official/model.py:418-427
 Variant   : starter (all blanks default to placeholder values)
 """
 def index_score(queries, keys, head_weights):

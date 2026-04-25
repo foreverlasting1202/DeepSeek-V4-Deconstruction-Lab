@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s17 Block-wise FP8 Act Quant [solution].
 
-Reference : kernel.py:40-102
+Reference : DeepSeek_official/kernel.py:40-102
 Variant   : solution (all blanks filled with reference values)
 """
 FP8_MAX = 448.0

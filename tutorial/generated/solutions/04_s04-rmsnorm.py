@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s04 RMSNorm in Float32 [solution].
 
-Reference : model.py:183-196
+Reference : DeepSeek_official/model.py:183-196
 Variant   : solution (all blanks filled with reference values)
 """
 def rmsnorm(row, weight, eps=1e-6):

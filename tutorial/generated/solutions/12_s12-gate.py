@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s12 Gate — sqrtsoftplus + Bias [solution].
 
-Reference : model.py:564-584
+Reference : DeepSeek_official/model.py:564-584
 Variant   : solution (all blanks filled with reference values)
 """
 def softmax(values):

@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s12-gate (lesson)
 Title   : Gate — sqrtsoftplus + Bias
-Source  : model.py:564-584
+Source  : DeepSeek_official/model.py:564-584
 """
     def forward(self, x: torch.Tensor, input_ids: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         scores = linear(x.float(), self.weight.float())

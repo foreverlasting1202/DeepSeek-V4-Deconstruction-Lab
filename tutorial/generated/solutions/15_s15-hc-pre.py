@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s15 mHC Pre-Mix [solution].
 
-Reference : model.py:674-682
+Reference : DeepSeek_official/model.py:674-682
 Variant   : solution (all blanks filled with reference values)
 """
 def rms_scale(values, eps):

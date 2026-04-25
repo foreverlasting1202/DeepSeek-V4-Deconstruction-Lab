@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s06-yarn-smooth (lesson)
 Title   : YaRN Smooth Interpolation
-Source  : model.py:221-229
+Source  : DeepSeek_official/model.py:221-229
 """
     if original_seq_len > 0:
         low, high = find_correction_range(beta_fast, beta_slow, dim, base, original_seq_len)

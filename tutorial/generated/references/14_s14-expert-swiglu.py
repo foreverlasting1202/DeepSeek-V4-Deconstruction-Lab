@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s14-expert-swiglu (lesson)
 Title   : SwiGLU Expert
-Source  : model.py:589-606
+Source  : DeepSeek_official/model.py:589-606
 """
     def __init__(self, dim: int, inter_dim: int, dtype=None, swiglu_limit=0):
         super().__init__()

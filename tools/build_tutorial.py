@@ -46,7 +46,7 @@ SOLUTIONS_DIR = GENERATED_DIR / "solutions"
 REFERENCES_DIR = GENERATED_DIR / "references"
 SITE_ASSETS_DIR = ROOT / "site" / "assets"
 
-SOURCES = ("model.py", "kernel.py")
+SOURCES = ("DeepSeek_official/model.py", "DeepSeek_official/kernel.py")
 TOKEN_RE = re.compile(r"__B_([a-zA-Z0-9_]+)__")
 
 

@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s07-apply-rotary (lesson)
 Title   : Apply Rotary Embedding
-Source  : model.py:232-244
+Source  : DeepSeek_official/model.py:232-244
 """
 def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor, inverse: bool = False) -> torch.Tensor:
     """Applies rotary positional embeddings in-place. Uses conjugate for inverse (de-rotation)."""

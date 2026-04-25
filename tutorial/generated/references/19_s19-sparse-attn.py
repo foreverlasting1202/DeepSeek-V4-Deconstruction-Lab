@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `kernel.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/kernel.py`.
 
 Segment : s19-sparse-attn (lesson)
 Title   : Sparse Attention Online Softmax
-Source  : kernel.py:276-352
+Source  : DeepSeek_official/kernel.py:276-352
 """
 @tilelang.jit(pass_configs=pass_configs)
 def sparse_attn_kernel(h: int, d: int, scale=None):

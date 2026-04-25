@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s16 mHC Post-Mix [solution].
 
-Reference : model.py:684-687
+Reference : DeepSeek_official/model.py:684-687
 Variant   : solution (all blanks filled with reference values)
 """
 def hc_post(x, residual, post, comb):

@@ -102,7 +102,7 @@ LESSON_SPECS = [
         "difficulty": "Warm-up",
         "estimated_time": "8 min",
         "tags": ["dispatch", "quantization"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 108,
         "line_end": 120,
         "summary": (
@@ -243,7 +243,7 @@ LESSON_SPECS = [
         "difficulty": "Warm-up",
         "estimated_time": "10 min",
         "tags": ["layout", "quantization"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 123,
         "line_end": 150,
         "summary": (
@@ -370,7 +370,7 @@ LESSON_SPECS = [
         "difficulty": "Warm-up",
         "estimated_time": "8 min",
         "tags": ["tensor-parallel", "sharding"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 155,
         "line_end": 180,
         "summary": (
@@ -465,7 +465,7 @@ LESSON_SPECS = [
         "difficulty": "Warm-up",
         "estimated_time": "9 min",
         "tags": ["rmsnorm", "normalization"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 183,
         "line_end": 196,
         "summary": (
@@ -562,7 +562,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "10 min",
         "tags": ["rope", "yarn"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 220,
         "line_end": 220,
         "summary": (
@@ -648,7 +648,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "12 min",
         "tags": ["rope", "yarn", "long-context"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 221,
         "line_end": 229,
         "summary": (
@@ -746,7 +746,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "12 min",
         "tags": ["rotary", "complex"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 232,
         "line_end": 244,
         "summary": (
@@ -853,7 +853,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "14 min",
         "tags": ["csa", "compressor"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 316,
         "line_end": 342,
         "summary": (
@@ -963,7 +963,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "12 min",
         "tags": ["kv-cache", "ring"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 517,
         "line_end": 533,
         "summary": (
@@ -1063,7 +1063,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "10 min",
         "tags": ["topk", "merge"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 507,
         "line_end": 516,
         "summary": (
@@ -1140,7 +1140,7 @@ LESSON_SPECS = [
         "difficulty": "Advanced",
         "estimated_time": "12 min",
         "tags": ["indexer", "top-k"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 418,
         "line_end": 427,
         "summary": (
@@ -1234,7 +1234,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "12 min",
         "tags": ["gate", "moe"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 564,
         "line_end": 584,
         "summary": (
@@ -1338,7 +1338,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "12 min",
         "tags": ["moe", "dispatch"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 635,
         "line_end": 645,
         "summary": (
@@ -1441,7 +1441,7 @@ LESSON_SPECS = [
         "difficulty": "Warm-up",
         "estimated_time": "8 min",
         "tags": ["swiglu", "expert"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 589,
         "line_end": 606,
         "summary": (
@@ -1533,7 +1533,7 @@ LESSON_SPECS = [
         "difficulty": "Advanced",
         "estimated_time": "12 min",
         "tags": ["mhc", "hyper-connections"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 674,
         "line_end": 682,
         "summary": (
@@ -1625,7 +1625,7 @@ LESSON_SPECS = [
         "difficulty": "Advanced",
         "estimated_time": "10 min",
         "tags": ["mhc", "residual"],
-        "source_path": "model.py",
+        "source_path": "DeepSeek_official/model.py",
         "line_start": 684,
         "line_end": 687,
         "summary": (
@@ -1718,7 +1718,7 @@ LESSON_SPECS = [
         "difficulty": "Core",
         "estimated_time": "12 min",
         "tags": ["kernel", "fp8", "quantization"],
-        "source_path": "kernel.py",
+        "source_path": "DeepSeek_official/kernel.py",
         "line_start": 40,
         "line_end": 102,
         "summary": (
@@ -1817,7 +1817,7 @@ LESSON_SPECS = [
         "difficulty": "Advanced",
         "estimated_time": "14 min",
         "tags": ["fp4", "gemm", "scales"],
-        "source_path": "kernel.py",
+        "source_path": "DeepSeek_official/kernel.py",
         "line_start": 441,
         "line_end": 515,
         "summary": (
@@ -1910,7 +1910,7 @@ LESSON_SPECS = [
         "difficulty": "Advanced",
         "estimated_time": "16 min",
         "tags": ["kernel", "sparse-attention", "flashattention"],
-        "source_path": "kernel.py",
+        "source_path": "DeepSeek_official/kernel.py",
         "line_start": 276,
         "line_end": 352,
         "summary": (
@@ -2029,7 +2029,7 @@ LESSON_SPECS = [
         "difficulty": "Advanced",
         "estimated_time": "14 min",
         "tags": ["sinkhorn", "mhc"],
-        "source_path": "kernel.py",
+        "source_path": "DeepSeek_official/kernel.py",
         "line_start": 371,
         "line_end": 438,
         "summary": (

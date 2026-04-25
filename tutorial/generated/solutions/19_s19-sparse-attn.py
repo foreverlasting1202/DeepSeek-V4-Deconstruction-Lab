@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s19 Sparse Attention Online Softmax [solution].
 
-Reference : kernel.py:276-352
+Reference : DeepSeek_official/kernel.py:276-352
 Variant   : solution (all blanks filled with reference values)
 """
 import math

@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s07 Apply Rotary Embedding [solution].
 
-Reference : model.py:232-244
+Reference : DeepSeek_official/model.py:232-244
 Variant   : solution (all blanks filled with reference values)
 """
 def conjugate(z):

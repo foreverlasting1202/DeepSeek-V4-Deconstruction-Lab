@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s09-window-cache (lesson)
 Title   : Window KV Cache
-Source  : model.py:517-533
+Source  : DeepSeek_official/model.py:517-533
 """
         # compress kv & attn
         if start_pos == 0:

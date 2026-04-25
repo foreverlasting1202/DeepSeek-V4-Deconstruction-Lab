@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s11 Lightning Indexer Scoring [solution].
 
-Reference : model.py:418-427
+Reference : DeepSeek_official/model.py:418-427
 Variant   : solution (all blanks filled with reference values)
 """
 def index_score(queries, keys, head_weights):

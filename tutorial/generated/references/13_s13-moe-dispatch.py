@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s13-moe-dispatch (lesson)
 Title   : Sparse MoE Dispatch
-Source  : model.py:635-645
+Source  : DeepSeek_official/model.py:635-645
 """
         counts = torch.bincount(indices.flatten(), minlength=self.n_routed_experts).tolist()
         for i in range(self.experts_start_idx, self.experts_end_idx):

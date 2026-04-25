@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s04-rmsnorm (lesson)
 Title   : RMSNorm in Float32
-Source  : model.py:183-196
+Source  : DeepSeek_official/model.py:183-196
 """
 class RMSNorm(nn.Module):
     def __init__(self, dim: int, eps: float = 1e-6):

@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s09 Window KV Cache [solution].
 
-Reference : model.py:517-533
+Reference : DeepSeek_official/model.py:517-533
 Variant   : solution (all blanks filled with reference values)
 """
 def write_kv_cache(cache, values, start_pos, window_size):

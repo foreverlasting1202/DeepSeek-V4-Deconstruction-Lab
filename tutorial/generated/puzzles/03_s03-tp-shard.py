@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s03 Row vs Column Parallel Shards [puzzle].
 
-Reference : model.py:155-180
+Reference : DeepSeek_official/model.py:155-180
 Variant   : starter (all blanks default to placeholder values)
 """
 def shard_linear(in_features, out_features, world_size, mode):

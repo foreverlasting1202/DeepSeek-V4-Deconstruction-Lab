@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s06 YaRN Smooth Interpolation [solution].
 
-Reference : model.py:221-229
+Reference : DeepSeek_official/model.py:221-229
 Variant   : solution (all blanks filled with reference values)
 """
 def apply_yarn(freqs, factor, smooth):

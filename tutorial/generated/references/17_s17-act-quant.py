@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `kernel.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/kernel.py`.
 
 Segment : s17-act-quant (lesson)
 Title   : Block-wise FP8 Act Quant
-Source  : kernel.py:40-102
+Source  : DeepSeek_official/kernel.py:40-102
 """
 @tilelang.jit(pass_configs=pass_configs)
 def act_quant_kernel(

@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s14 SwiGLU Expert [puzzle].
 
-Reference : model.py:589-606
+Reference : DeepSeek_official/model.py:589-606
 Variant   : starter (all blanks default to placeholder values)
 """
 import math

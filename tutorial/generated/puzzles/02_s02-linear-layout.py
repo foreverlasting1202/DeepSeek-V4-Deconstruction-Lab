@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s02 Weight & Scale Layout [puzzle].
 
-Reference : model.py:123-150
+Reference : DeepSeek_official/model.py:123-150
 Variant   : starter (all blanks default to placeholder values)
 """
 block_size = 128

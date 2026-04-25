@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s01 Linear Dispatch [puzzle].
 
-Reference : model.py:108-120
+Reference : DeepSeek_official/model.py:108-120
 Variant   : starter (all blanks default to placeholder values)
 """
 class TorchStub:

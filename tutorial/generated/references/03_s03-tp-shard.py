@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s03-tp-shard (lesson)
 Title   : Row vs Column Parallel Shards
-Source  : model.py:155-180
+Source  : DeepSeek_official/model.py:155-180
 """
 class ColumnParallelLinear(Linear):
     """Shards output dim across TP ranks. No all-reduce needed on output."""

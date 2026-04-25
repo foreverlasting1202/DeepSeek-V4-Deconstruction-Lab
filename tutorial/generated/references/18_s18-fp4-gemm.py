@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `kernel.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/kernel.py`.
 
 Segment : s18-fp4-gemm (lesson)
 Title   : FP4 GEMM Scale Alignment
-Source  : kernel.py:441-515
+Source  : DeepSeek_official/kernel.py:441-515
 """
 @tilelang.jit(pass_configs=pass_configs)
 def fp4_gemm_kernel(N, K, out_dtype=BF16, accum_dtype=FP32, scale_dtype=FP32):

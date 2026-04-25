@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s08 Compressor Prefill [puzzle].
 
-Reference : model.py:316-342
+Reference : DeepSeek_official/model.py:316-342
 Variant   : starter (all blanks default to placeholder values)
 """
 def softmax(values):

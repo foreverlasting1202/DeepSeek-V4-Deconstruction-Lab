@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s10 Window + Compressed Top-k [solution].
 
-Reference : model.py:507-516
+Reference : DeepSeek_official/model.py:507-516
 Variant   : solution (all blanks filled with reference values)
 """
 def build_topk_plan(window_topk, compress_topk):

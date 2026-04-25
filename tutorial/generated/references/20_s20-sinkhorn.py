@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `kernel.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/kernel.py`.
 
 Segment : s20-sinkhorn (lesson)
 Title   : mHC Sinkhorn Iterations
-Source  : kernel.py:371-438
+Source  : DeepSeek_official/kernel.py:371-438
 """
 @tilelang.jit(pass_configs=pass_configs)
 def hc_split_sinkhorn_kernel(hc: int, sinkhorn_iters: int, eps: float):

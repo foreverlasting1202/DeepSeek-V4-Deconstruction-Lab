@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s02-linear-layout (lesson)
 Title   : Weight & Scale Layout
-Source  : model.py:123-150
+Source  : DeepSeek_official/model.py:123-150
 """
 class Linear(nn.Module):
     """Linear layer supporting BF16, FP8, and FP4 weight formats with per-block scaling."""

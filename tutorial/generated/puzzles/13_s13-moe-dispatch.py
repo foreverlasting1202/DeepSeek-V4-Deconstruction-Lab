@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s13 Sparse MoE Dispatch [puzzle].
 
-Reference : model.py:635-645
+Reference : DeepSeek_official/model.py:635-645
 Variant   : starter (all blanks default to placeholder values)
 """
 def count_indices(routed):

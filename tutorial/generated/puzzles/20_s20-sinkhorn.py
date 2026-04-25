@@ -1,6 +1,6 @@
 """DeepSeek-V4 Lab — s20 mHC Sinkhorn Iterations [puzzle].
 
-Reference : kernel.py:371-438
+Reference : DeepSeek_official/kernel.py:371-438
 Variant   : starter (all blanks default to placeholder values)
 """
 import math

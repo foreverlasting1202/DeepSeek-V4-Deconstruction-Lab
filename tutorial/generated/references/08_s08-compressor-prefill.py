@@ -1,8 +1,8 @@
-"""Reference slice from DeepSeek-V4 `model.py`.
+"""Reference slice from DeepSeek-V4 `DeepSeek_official/model.py`.
 
 Segment : s08-compressor-prefill (lesson)
 Title   : Compressor Prefill
-Source  : model.py:316-342
+Source  : DeepSeek_official/model.py:316-342
 """
     def forward(self, x: torch.Tensor, start_pos: int):
         assert self.kv_cache is not None
