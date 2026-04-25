@@ -1,6 +1,6 @@
 # DeepSeek-V4 拆解实验室
 
-**注意：这个仓库完全由 Agent 生成。如有任何问题，欢迎联系我们。
+**注意：这个仓库完全由 Agent 生成。如有任何问题，欢迎联系我们。**
 
 > [English README](./README.md)
 
