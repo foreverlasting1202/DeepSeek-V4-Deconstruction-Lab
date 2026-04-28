@@ -118,6 +118,22 @@ LESSON_SPECS = [
                 "bifurcates at runtime."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "In `DeepSeek_official/model.py:108-120`, `linear()` compares against the real "
+                "`torch.float4_e2m1fn_x2` / `torch.float8_e4m3fn` dtypes, calls into the TileLang "
+                "kernels `act_quant`, `fp4_gemm`, `fp8_gemm` from `kernel.py`, and falls through to "
+                "`F.linear(x, weight)` for the BF16 path — every branch returns a real "
+                "`torch.Tensor` matrix product."
+            ),
+            "stub": (
+                "The puzzle replaces all three GEMMs (and `act_quant`) with pure-Python stubs that "
+                "return tagged tuples like `('bf16', x, weight.dtype)`. The first element is just a "
+                "breadcrumb so the validator can prove which branch fired without needing a GPU, "
+                "real FP4/FP8 dtype support, or a TileLang installation. `dense_linear(x, weight)` "
+                "stands in for `F.linear`."
+            ),
+        },
         "what_you_learn": [
             "Why quantized weights require an activation quant step first.",
             "Why BF16 is the simplest path — no external `scale` tensor travels alongside the weight.",
@@ -260,6 +276,21 @@ LESSON_SPECS = [
                 "tensor shape to each ratio in the paper's quantization table."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "In `Linear.__init__` (`model.py:123-150`), every branch allocates real "
+                "`nn.Parameter(torch.empty(out_features, in_features // 2 or in_features, dtype=…))` "
+                "tensors and additionally registers an FP8-E8M0 scale tensor via "
+                "`self.weight.scale = self.scale = nn.Parameter(...)` for FP4 / FP8 weights. The BF16 "
+                "branch calls `self.register_parameter('scale', None)` instead."
+            ),
+            "stub": (
+                "`describe_linear_layout` only returns the SHAPE tuples `(weight_shape, scale_shape)` "
+                "— it never allocates a tensor. The puzzle isolates the shape arithmetic (FP4 packs "
+                "`in_features // 2` bytes; FP8 needs `ceildiv` per axis; BF16 has `scale_shape=None`) "
+                "so you can verify the layout without instantiating real PyTorch parameters."
+            ),
+        },
         "what_you_learn": [
             "Why FP4 packs two values per byte and needs `in_features // 2` storage.",
             "Why FP8 stores one scale per 128×128 tile (`ceildiv` each dim).",
@@ -387,6 +418,21 @@ LESSON_SPECS = [
                 "a row-parallel pass that all-reduces partials."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "`ColumnParallelLinear` (`model.py:155-163`) sets `self.part_out_features = "
+                "out_features // world_size` then calls `super().__init__(in_features, "
+                "self.part_out_features, ...)` so each rank only allocates its slice. "
+                "`RowParallelLinear` (`model.py:166-180`) analogously slices `in_features` AND adds "
+                "`dist.all_reduce(y)` in its `forward()` to sum partial results across ranks."
+            ),
+            "stub": (
+                "`shard_linear` is a single function returning the post-shard `(in_features, "
+                "out_features)` tuple — no `nn.Module`, no `dist`, no all-reduce. The puzzle "
+                "isolates the SLICE-WHICH-AXIS choice; the all-reduce side of row-parallel is "
+                "covered narratively in the surrounding interludes."
+            ),
+        },
         "what_you_learn": [
             "Column-parallel: `out_features //= world_size`, each rank holds a tile of the output.",
             "Row-parallel: `in_features //= world_size`, each rank holds a tile of the input, then all-reduce.",
@@ -479,6 +525,21 @@ LESSON_SPECS = [
             "summary": (
                 "RMSNorm is the default norm throughout the hybrid attention / MoE stack; its "
                 "FP32 recipe is load-bearing for stability when activations live in FP8."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "`RMSNorm.forward` (`model.py:191-196`) is four vectorized lines: "
+                "`x = x.float(); var = x.square().mean(-1, keepdim=True); "
+                "x = x * torch.rsqrt(var + self.eps); return (self.weight * x).to(dtype)`. "
+                "The FP32 promotion and the dtype round-trip are essential for stability when the "
+                "input is BF16 / FP8."
+            ),
+            "stub": (
+                "Pure-Python list math: `sum(value * value for value in row) / len(row)` for the "
+                "mean-square, and `1.0 / ((var + eps) ** 0.5)` for the inverse RMS. No FP32 "
+                "promotion, no broadcasting, no dtype handling. The formula and the placement of "
+                "`eps` inside the sqrt are identical — only the tensor mechanics are stripped."
             ),
         },
         "what_you_learn": [
@@ -579,6 +640,19 @@ LESSON_SPECS = [
                 "for every later positional transform in the paper."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "Inside `precompute_freqs_cis` (`model.py:220`), this is a single vectorized "
+                "expression: `freqs = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) "
+                "/ dim))`. It produces a 1-D FP32 tensor of length `dim // 2`, cached by "
+                "`@lru_cache(2)` because it depends only on `dim` and `base`."
+            ),
+            "stub": (
+                "A Python `for i in range(0, dim, 2)` loop emits one float per even index. Same "
+                "formula, just unrolled element-by-element so the math reads top-to-bottom — no "
+                "`torch.arange`, no caching, no FP32 dtype management."
+            ),
+        },
         "what_you_learn": [
             "Why the exponent walks over EVEN indices — each pair `(2i, 2i+1)` shares one frequency.",
             "Why `base = 10000` is the classical choice and how it controls frequency decay.",
@@ -663,6 +737,21 @@ LESSON_SPECS = [
                 "DeepSeek-V4 uses YaRN to push the trained RoPE table out to 1M-token context "
                 "without retraining. The linear-ramp smooth mask below is the mechanism that "
                 "selectively protects high-frequency bands."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "After `smooth = 1 - linear_ramp_factor(low, high, dim // 2)`, "
+                "`precompute_freqs_cis` (`model.py:221-229`) does the convex combination "
+                "`freqs = freqs / factor * (1 - smooth) + freqs * smooth` (broadcasted over the "
+                "frequency band axis), then `freqs = torch.outer(t, freqs)` to build the full "
+                "angle grid, and finally `torch.polar(torch.ones_like(freqs), freqs)` converts to "
+                "the complex-exponential `freqs_cis` table consumed by `apply_rotary_emb`."
+            ),
+            "stub": (
+                "Two explicit Python loops — one per-band convex combination, one outer-product "
+                "row. The polar / complex-exponential conversion is deferred to S07, which uses "
+                "Python's built-in `complex` instead of `torch.view_as_complex`."
             ),
         },
         "what_you_learn": [
@@ -761,6 +850,22 @@ LESSON_SPECS = [
                 "DSA-style attention rotates both Q and K in CSA, then *unrotates* the attention "
                 "output via the inverse path so that the residual stream stays un-rotated — this "
                 "conjugate trick replaces a second matrix parameter."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "`apply_rotary_emb` (`model.py:232-244`) does "
+                "`x = torch.view_as_complex(x.float().unflatten(-1, (-1, 2)))`, optionally "
+                "`freqs_cis = freqs_cis.conj()` for inverse, then "
+                "`x = torch.view_as_real(x * freqs_cis).flatten(-2)` and writes back in-place via "
+                "`y.copy_(x)`. FP32 promotion is mandatory — BF16 lacks the precision for the "
+                "complex multiply at long-context positions."
+            ),
+            "stub": (
+                "Uses Python's built-in `complex(x, y)` to pack adjacent floats into complex "
+                "numbers — a stand-in for `view_as_complex`. The conjugate-on-inverse trick is "
+                "identical; the only differences are no in-place writeback, no FP32 promotion, and "
+                "no broadcast-shape juggling for 3-D vs 4-D inputs."
             ),
         },
         "what_you_learn": [
@@ -867,6 +972,23 @@ LESSON_SPECS = [
             "summary": (
                 "This is the central equation behind CSA: per-window softmax over `Z`, then a "
                 "Hadamard-weighted sum of `C` — reducing n tokens into n/m compressed entries."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "`Compressor.forward` (`model.py:316-342`) projects `kv = self.wkv(x)` and "
+                "`score = self.wgate(x)`, calls `kv = kv.unflatten(1, (-1, ratio))` to slice the "
+                "sequence into windows, adds the learned positional embedding `self.ape`, "
+                "optionally calls `self.overlap_transform` for `compress_ratio == 4`, and finally "
+                "fuses the per-window pool as `kv = (kv * score.softmax(dim=2)).sum(dim=2)` — one "
+                "softmax-then-weighted-sum tensor expression."
+            ),
+            "stub": (
+                "An explicit Python `for start in range(0, len(kv_rows), ratio)` loop slices the "
+                "sequence, then `weighted_sum(window, softmax(scores))` does the per-window pool. "
+                "The puzzle ignores the `wkv` / `wgate` projections, the `self.ape` embedding, the "
+                "overlap transform, and the decode-state buffers (those are covered in interludes "
+                "i09 / i10) so you focus on the softmax-pool recipe itself."
             ),
         },
         "what_you_learn": [
@@ -979,6 +1101,22 @@ LESSON_SPECS = [
                 "local structure. This code is where that window survives across autoregressive steps."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "Inside `Attention.forward` (`model.py:517-533`), short prefill is "
+                "`self.kv_cache[:bsz, :seqlen] = kv`; long prefill splits and rotates so the ring "
+                "already starts at the correct position: `cutoff = seqlen % win`, then "
+                "`self.kv_cache[:bsz, cutoff:win], self.kv_cache[:bsz, :cutoff] = "
+                "kv[:, -win:].split([win - cutoff, cutoff], dim=1)`. Decode is a single in-place "
+                "tensor index write at slot `start_pos % win`."
+            ),
+            "stub": (
+                "`write_kv_cache` operates on a Python `list` instead of a `torch.Tensor` and "
+                "skips the prefill split/rotate trick — it just keeps the last `window_size` "
+                "elements unrotated. The decode branch's `start_pos % window_size` index is "
+                "identical to the real code."
+            ),
+        },
         "what_you_learn": [
             "Why the prefill path falls back to `values[-window_size:]` when the input is longer than the window.",
             "Why `start_pos % window_size` makes the cache *effectively circular* at no extra cost.",
@@ -1079,6 +1217,22 @@ LESSON_SPECS = [
                 "top-k compressed KV, which the sparse attention kernel reads in lock-step."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "In `Attention.forward` (`model.py:507-516`), this is "
+                "`topk_idxs = get_window_topk_idxs(win, bsz, seqlen, start_pos)` followed by "
+                "`topk_idxs = torch.cat([topk_idxs, compress_topk_idxs], dim=-1)` and "
+                "`topk_idxs = topk_idxs.int()`. Crucially the `-1` sentinel is NOT filtered here — "
+                "it is read by `sparse_attn_kernel` (`kernel.py:323-327`) which masks "
+                "`idxs[i] != -1` to zero out those gather lanes."
+            ),
+            "stub": (
+                "`build_topk_plan` does the concat in pure Python and additionally filters `-1` "
+                "out of the result. That trailing filter is purely a *test affordance* so the "
+                "validator can compare a clean list — the real production path keeps the "
+                "sentinels in place all the way to the kernel."
+            ),
+        },
         "what_you_learn": [
             "Why `-1` is kept as an explicit sentinel rather than excised early — the kernel uses it to zero-out contributions.",
             "Why the concat order matters for block-aligned cache reads.",
@@ -1153,6 +1307,21 @@ LESSON_SPECS = [
             "summary": (
                 "Equations 15–16 in the paper. The ReLU is critical — it zeroes out negative "
                 "alignments so the top-k survives noisy queries."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "Inside `Indexer.forward` (`model.py:418-427`), the score is "
+                "`index_score = torch.einsum('bshd,btd->bsht', q, self.kv_cache[:bsz, :end_pos // ratio])` "
+                "— a batched per-head Q·K — followed by "
+                "`(index_score.relu_() * weights.unsqueeze(-1)).sum(dim=2)`. The result is "
+                "all-reduced across TP ranks, masked, and finally fed to `topk(...)`."
+            ),
+            "stub": (
+                "An explicit triple-loop (head, then dot-product, then accumulate) computes the "
+                "same scalar score for one (q, k) pair. No batching, no `einsum`, no `topk` — the "
+                "puzzle isolates the per-head ReLU + head-weighted-sum recipe; the surrounding "
+                "top-k selection is structurally trivial once the score is correct."
             ),
         },
         "what_you_learn": [
@@ -1248,6 +1417,22 @@ LESSON_SPECS = [
             "summary": (
                 "Paper change from V3: the affinity function is `sqrt(softplus(·))`, and a "
                 "bias-assisted top-k keeps load balanced without distorting the routing weights."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "`Gate.forward` (`model.py:564-584`) does `scores = linear(x.float(), "
+                "self.weight.float())`, applies the chosen activation (default "
+                "`F.softplus(scores).sqrt()`), saves `original_scores = scores`, and only THEN "
+                "adds `self.bias` for selection. Indices come from `scores.topk(self.topk, "
+                "dim=-1)[1]`, weights come from `original_scores.gather(1, indices)`, and "
+                "non-softmax branches additionally re-normalize via `weights /= weights.sum(...)`."
+            ),
+            "stub": (
+                "The puzzle replaces `sqrt(softplus(...))` with plain `softmax` for simplicity, "
+                "but keeps the critical separation between *shifted* scores (used to pick the "
+                "top-k) and *original* scores (used for the routing weight). Python helpers "
+                "`topk_indices` and `gather` mirror their PyTorch counterparts one-to-one."
             ),
         },
         "what_you_learn": [
@@ -1354,6 +1539,22 @@ LESSON_SPECS = [
                 "execution below avoids launching inactive experts entirely."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "`MoE.forward` (`model.py:630-645`) does `counts = torch.bincount("
+                "indices.flatten(), minlength=...).tolist()` to skip empty experts, then for each "
+                "active expert `i`: `idx, top = torch.where(indices == i); "
+                "y[idx] += expert(x[idx], weights[idx, top, None])`. After the routed loop it "
+                "all-reduces `y` across TP ranks and unconditionally adds "
+                "`y += self.shared_experts(x)`."
+            ),
+            "stub": (
+                "Pure-Python equivalents: `count_indices` mirrors `bincount`, the comprehension "
+                "`[(t, k) for t, row in enumerate(routed) ...]` mirrors `torch.where`, and outputs "
+                "are scalars instead of tensor rows. The bincount-based skip and the "
+                "shared-expert add are preserved exactly."
+            ),
+        },
         "what_you_learn": [
             "Why `bincount` is a cheap way to avoid launching inactive experts.",
             "Why `(token_idx, top_slot)` must BOTH be preserved — `top_slot` is the index into the routing-weight tensor.",
@@ -1456,6 +1657,21 @@ LESSON_SPECS = [
                 "routed-expert weights via the Linear dispatch you built in s01."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "`Expert.forward` (`model.py:596-606`) computes `gate = self.w1(x).float(); "
+                "up = self.w3(x).float()`, optionally clamps `up` and `gate` to "
+                "`self.swiglu_limit`, then `x = F.silu(gate) * up`, applies `weights * x` if "
+                "MoE-routed, and finally projects back via `self.w2(x.to(dtype))`. All three "
+                "linears go through your `linear()` dispatcher from S01."
+            ),
+            "stub": (
+                "The puzzle skips both the `w1` / `w2` / `w3` projections and the optional "
+                "clamping — it focuses on the `silu(gate) * up` core multiplication, elementwise "
+                "in pure Python. The optional `route_weight` knob is preserved because that one "
+                "line is reused inside the MoE loop in S13."
+            ),
+        },
         "what_you_learn": [
             "Why SwiGLU multiplies SiLU(gate) elementwise with a separate `up` projection.",
             "Why optional clipping on `gate` / `up` stabilises FP4 training.",
@@ -1546,6 +1762,22 @@ LESSON_SPECS = [
             "summary": (
                 "eq. (3) writes the input mapping Â_l · X_l; the code below is the fused "
                 "RMS-norm + mixing step that materialises it at each block boundary."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "`Block.hc_pre` (`model.py:674-682`) flattens `[b, s, hc, d] → [b, s, hc*d]`, "
+                "computes `rsqrt = torch.rsqrt(x.square().mean(-1, keepdim=True) + eps)`, projects "
+                "`mixes = F.linear(x, hc_fn) * rsqrt`, then calls the TileLang kernel "
+                "`hc_split_sinkhorn(mixes, hc_scale, hc_base, ...)` which returns "
+                "`(pre, post, comb)`. Finally `y = (pre.unsqueeze(-1) * x.view(shape)).sum(dim=2)` "
+                "collapses the `hc` lane axis with a learned weighted sum."
+            ),
+            "stub": (
+                "The puzzle skips the `hc_fn` projection AND the TileLang Sinkhorn kernel "
+                "entirely — it pre-supplies the lane logits as an input and only asks you to wire "
+                "the rsqrt-scale → softmax-like-normalize → weighted-collapse pipeline. The "
+                "Sinkhorn kernel itself is the subject of S20."
             ),
         },
         "what_you_learn": [
@@ -1640,6 +1872,20 @@ LESSON_SPECS = [
                 "B_l; together they give us this closed-form post-mix."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "`Block.hc_post` (`model.py:684-687`) is a single tensor expression: "
+                "`y = post.unsqueeze(-1) * x.unsqueeze(-2) + torch.sum(comb.unsqueeze(-1) * "
+                "residual.unsqueeze(-2), dim=2)`. Two broadcast multiplies and a reduction over "
+                "source lanes — closed form, no loops."
+            ),
+            "stub": (
+                "Two nested Python loops over `(lane, col)` make the broadcast pattern explicit. "
+                "Each cell is `post[lane] * x[col] + sum(comb[lane][src] * residual[src][col] "
+                "for src in ...)` — exactly the closed form, just unrolled so the indexing is "
+                "immediately legible."
+            ),
+        },
         "what_you_learn": [
             "Why the new output is BROADCAST into every lane via `post`.",
             "Why `comb` has to be doubly-stochastic (Sinkhorn upstream) to avoid blowing up.",
@@ -1732,6 +1978,22 @@ LESSON_SPECS = [
             "summary": (
                 "This is the FP8 activation quant kernel referenced by §3.2; `scale_fmt='ue8m0'` "
                 "additionally rounds the scale to a power-of-two, matching MXFP8 semantics."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "`act_quant_kernel` (`kernel.py:40-102`) is a TileLang `@tilelang.jit` GPU kernel. "
+                "It splits the input into `[blk_m=32, group_size=128]` tiles in shared memory, "
+                "calls `T.reduce_absmax` along the group axis, applies the floor "
+                "`T.max(amax, 1e-4)`, optionally rounds to a power-of-two scale via "
+                "`fast_round_scale` (the MXFP path), then either clamps + casts to FP8 or runs an "
+                "in-place QAT round-trip back to BF16 (`inplace=True`)."
+            ),
+            "stub": (
+                "A pure-Python `quantize_row` walks the row block-by-block in a `for` loop. No "
+                "GPU, no shared memory, no `T.reduce_absmax`, no power-of-two rounding (mentioned "
+                "only in pitfalls). The puzzle nails down the divide-then-clamp recipe and the "
+                "`max(amax, 1e-4)` floor — those carry over verbatim to the kernel."
             ),
         },
         "what_you_learn": [
@@ -1833,6 +2095,22 @@ LESSON_SPECS = [
                 "of how FP4 QAT stabilises routed-expert weights in DeepSeek-V4."
             ),
         },
+        "source_mapping": {
+            "real": (
+                "`fp4_gemm_kernel` (`kernel.py:441-515`) is a TileLang kernel performing "
+                "FP8(act) × FP4(weight) GEMM. It loads FP4 sub-blocks of size `[block_N, 32]`, "
+                "casts FP4 → FP32 → FP8, runs FP8×FP8 `T.gemm`, and applies the act scale (one "
+                "per 128-K group) AND the weight scale (one per 32-K group) to a second "
+                "accumulator. With `n_sub = act_group_size // block_K = 4`, every 4 weight "
+                "sub-blocks share one act scale."
+            ),
+            "stub": (
+                "A pure-Python triple-loop reproduces the K-axis arithmetic ONLY: "
+                "`act_group = kk // (block_k * n_sub)` and `weight_group = kk // block_k`. There "
+                "is no FP4 packing, no FP4→FP8 cast, no real GEMM — the puzzle exists to verify "
+                "you derive the correct *index math* the kernel needs."
+            ),
+        },
         "what_you_learn": [
             "Why four 32-wide weight sub-blocks share ONE activation scale.",
             "Why the accumulator multiplies BOTH scales into every partial sum.",
@@ -1924,6 +2202,23 @@ LESSON_SPECS = [
             "summary": (
                 "Sparse attention with top-k KV entries; the online softmax below is the kernel "
                 "recipe inside `sparse_attn_kernel`."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "`sparse_attn_kernel` (`kernel.py:276-352`) is a FlashAttention-style TileLang "
+                "kernel. It pipelines 64-token blocks of top-k indices, gathers KV via "
+                "`T.if_then_else(idxs[i] != -1, kv[by, idxs[i], j], 0)`, runs `T.gemm(q_shared, "
+                "kv_shared, acc_s, transpose_B=True)` for the scores, maintains per-head "
+                "`scores_max` / `sum_exp`, rescales `acc_o` by `T.exp(scores_max_prev - "
+                "scores_max)` each step, and folds in `T.exp(attn_sink[i] - scores_max[i])` only "
+                "at the very end."
+            ),
+            "stub": (
+                "A scalar Python implementation operating on one query and one head. No tiling, "
+                "no shared memory, no `T.gemm`. The running-max / running-sum update equations "
+                "and the rescale `exp(prev_max - running_max)` are line-for-line identical to the "
+                "kernel — only the parallelism is missing."
             ),
         },
         "what_you_learn": [
@@ -2043,6 +2338,21 @@ LESSON_SPECS = [
             "summary": (
                 "eq. (8) is the Sinkhorn-Knopp iteration; the manifold constraint caps the "
                 "spectral norm of `B_l` at 1 and stabilises the deep HC stack."
+            ),
+        },
+        "source_mapping": {
+            "real": (
+                "`hc_split_sinkhorn_kernel` (`kernel.py:371-438`) is a TileLang kernel that "
+                "computes `pre`, `post`, and `comb` per token from the `mixes` projection. For "
+                "`comb`, it row-softmaxes (with `+ eps`), normalises columns, then alternates "
+                "row/col normalisation for `sinkhorn_iters - 1` more rounds — all in shared "
+                "memory inside one TileLang block per token, parallel across the batch×seq axis."
+            ),
+            "stub": (
+                "Pure-Python alternating `normalize_rows` / `normalize_cols`, starting from a "
+                "`softmax_rows(matrix)` call (mirroring the kernel's row-softmax-with-eps step). "
+                "The loop body and convergence behaviour are identical; only the per-token "
+                "parallelism and the GPU shared-memory allocation are missing."
             ),
         },
         "what_you_learn": [

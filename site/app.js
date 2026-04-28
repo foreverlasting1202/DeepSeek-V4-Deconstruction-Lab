@@ -320,6 +320,33 @@
     `;
   }
 
+  function renderSourceMapping(lesson) {
+    const mapping = (lang === "zh" && lesson.i18n && lesson.i18n.zh && lesson.i18n.zh.source_mapping)
+      ? lesson.i18n.zh.source_mapping
+      : lesson.source_mapping;
+    if (!mapping || (!mapping.real && !mapping.stub)) return "";
+    const realText = mapping.real || (lesson.source_mapping && lesson.source_mapping.real) || "";
+    const stubText = mapping.stub || (lesson.source_mapping && lesson.source_mapping.stub) || "";
+    return `
+      <section class="panel">
+        <header class="panel__head">
+          <span class="panel__title">${escapeHtml(t("section.source_mapping"))}</span>
+          <span class="panel__title" style="color:var(--text-dim)">${escapeHtml(lesson.source_path)}:${lesson.line_start}-${lesson.line_end}</span>
+        </header>
+        <div class="panel__body source-mapping">
+          ${realText ? `<div class="source-mapping__row">
+            <div class="source-mapping__label source-mapping__label--real">${escapeHtml(t("section.source_mapping.real"))}</div>
+            <div class="source-mapping__text">${renderInline(realText)}</div>
+          </div>` : ""}
+          ${stubText ? `<div class="source-mapping__row">
+            <div class="source-mapping__label source-mapping__label--stub">${escapeHtml(t("section.source_mapping.stub"))}</div>
+            <div class="source-mapping__text">${renderInline(stubText)}</div>
+          </div>` : ""}
+        </div>
+      </section>
+    `;
+  }
+
   function renderPrevNextNav(seg) {
     const all = interactiveSegments;
     const idx = all.findIndex((s) => s.id === seg.id);
@@ -374,6 +401,8 @@
         </header>
         <div class="panel__body">${renderInline(lesson.paper_anchor.summary)}</div>
       </section>
+
+      ${renderSourceMapping(lesson)}
 
       <section class="panel">
         <header class="panel__head">

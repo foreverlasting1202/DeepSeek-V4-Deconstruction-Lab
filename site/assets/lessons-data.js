@@ -167,6 +167,9 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section.workshop_steps": "Workshop steps",
         "section.pitfalls": "Pitfalls",
         "section.why_it_matters": "Why it matters",
+        "section.source_mapping": "Real source vs puzzle stubs",
+        "section.source_mapping.real": "Real source",
+        "section.source_mapping.stub": "Puzzle stub",
         "tabs.puzzle": "Puzzle",
         "tabs.free": "Free editor",
         "tabs.solution": "Solution",
@@ -246,6 +249,9 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section.workshop_steps": "练习步骤",
         "section.pitfalls": "常见陷阱",
         "section.why_it_matters": "关键要点",
+        "section.source_mapping": "源码对照",
+        "section.source_mapping.real": "源码实现",
+        "section.source_mapping.stub": "练习简化",
         "tabs.puzzle": "填空练习",
         "tabs.free": "自由编辑",
         "tabs.solution": "参考答案",
@@ -325,6 +331,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 2 — Overall Architecture",
         "summary": "The paper trains routed-expert weights in FP4 and activations in FP8; the dispatch below is the software seam where that mixed-precision plan actually bifurcates at runtime."
       },
+      "source_mapping": {
+        "real": "In `DeepSeek_official/model.py:108-120`, `linear()` compares against the real `torch.float4_e2m1fn_x2` / `torch.float8_e4m3fn` dtypes, calls into the TileLang kernels `act_quant`, `fp4_gemm`, `fp8_gemm` from `kernel.py`, and falls through to `F.linear(x, weight)` for the BF16 path — every branch returns a real `torch.Tensor` matrix product.",
+        "stub": "The puzzle replaces all three GEMMs (and `act_quant`) with pure-Python stubs that return tagged tuples like `('bf16', x, weight.dtype)`. The first element is just a breadcrumb so the validator can prove which branch fired without needing a GPU, real FP4/FP8 dtype support, or a TileLang installation. `dense_linear(x, weight)` stands in for `F.linear`."
+      },
       "what_you_learn": [
         "Why quantized weights require an activation quant step first.",
         "Why BF16 is the simplest path — no external `scale` tensor travels alongside the weight.",
@@ -399,6 +409,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "一个入口,三条精度路径。",
           "difficulty": "入门",
           "summary": "`linear()` 是 DeepSeek-V4 里所有 `nn.Linear` 的统一出口。它根据权重的 dtype 把请求路由到 FP4、FP8 或原生 BF16 的 GEMM。",
+          "source_mapping": {
+            "real": "`DeepSeek_official/model.py:108-120` 中,`linear()` 直接拿 `weight.dtype` 与真实的 `torch.float4_e2m1fn_x2` / `torch.float8_e4m3fn` 比较,调用 `kernel.py` 里的 TileLang 算子 `act_quant`、`fp4_gemm`、`fp8_gemm`,BF16 路径回落到 `F.linear(x, weight)`。每条分支返回的都是真实的 `torch.Tensor`。",
+            "stub": "练习把三个 GEMM(以及 `act_quant`)替换成纯 Python 的桩函数,统一返回带标签的元组,如 `('bf16', x, weight.dtype)`。元组首元素只是面包屑,让校验器能确认走的是哪条分支 —— 无需 GPU、无需真正支持 FP4/FP8,也不必装 TileLang。`dense_linear(x, weight)` 是 `F.linear` 的占位。"
+          },
           "what_you_learn": [
             "为什么量化权重必须先做一次激活量化。",
             "为什么 BF16 最简单 —— 不需要额外的 scale 张量跟着权重走。",
@@ -438,6 +452,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§3.4 FP4 Quantization-Aware Training",
         "figure": "Figure 2, inset on Mixed Precision",
         "summary": "Packed FP4 storage and per-block FP8 scales are the *physical* layout behind the mixed-precision boxes drawn in Figure 2 — the code below wires a concrete tensor shape to each ratio in the paper's quantization table."
+      },
+      "source_mapping": {
+        "real": "In `Linear.__init__` (`model.py:123-150`), every branch allocates real `nn.Parameter(torch.empty(out_features, in_features // 2 or in_features, dtype=…))` tensors and additionally registers an FP8-E8M0 scale tensor via `self.weight.scale = self.scale = nn.Parameter(...)` for FP4 / FP8 weights. The BF16 branch calls `self.register_parameter('scale', None)` instead.",
+        "stub": "`describe_linear_layout` only returns the SHAPE tuples `(weight_shape, scale_shape)` — it never allocates a tensor. The puzzle isolates the shape arithmetic (FP4 packs `in_features // 2` bytes; FP8 needs `ceildiv` per axis; BF16 has `scale_shape=None`) so you can verify the layout without instantiating real PyTorch parameters."
       },
       "what_you_learn": [
         "Why FP4 packs two values per byte and needs `in_features // 2` storage.",
@@ -513,6 +531,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "精度在前向开始之前就决定了张量形状。",
           "difficulty": "入门",
           "summary": "`Linear.__init__` 根据 dtype 决定权重的物理形状和 scale 张量的大小。FP4 在一个字节里打包两个值,FP8 则是每 128×128 一个 scale。",
+          "source_mapping": {
+            "real": "`Linear.__init__` (`model.py:123-150`) 每条分支都用 `nn.Parameter(torch.empty(out_features, in_features // 2 或 in_features, dtype=…))` 申请真实张量,FP4/FP8 还会通过 `self.weight.scale = self.scale = nn.Parameter(...)` 注册一个 FP8-E8M0 的 scale 张量;BF16 分支调用 `self.register_parameter('scale', None)`。",
+            "stub": "`describe_linear_layout` 只返回 `(weight_shape, scale_shape)` 两个形状元组,完全不分配张量。练习把形状算术单独剥出来 —— FP4 打包成 `in_features // 2` 字节、FP8 双轴各做一次 `ceildiv`、BF16 的 `scale_shape=None` —— 让你不用真的实例化 PyTorch 参数也能验证布局。"
+          },
           "what_you_learn": [
             "为什么 FP4 要把两个值塞进一个字节,需要 `in_features // 2` 的存储。",
             "为什么 FP8 每 128×128 一块 scale (两个轴都要 `ceildiv`)。",
@@ -552,6 +574,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§3.1 Fine-Grained Comm-Compute Overlap",
         "figure": "Figure 2",
         "summary": "Tensor-parallel sharding underpins the fused MoE kernels in §3.1: experts are split across ranks by output dim (column parallel) and later projected back by a row-parallel pass that all-reduces partials."
+      },
+      "source_mapping": {
+        "real": "`ColumnParallelLinear` (`model.py:155-163`) sets `self.part_out_features = out_features // world_size` then calls `super().__init__(in_features, self.part_out_features, ...)` so each rank only allocates its slice. `RowParallelLinear` (`model.py:166-180`) analogously slices `in_features` AND adds `dist.all_reduce(y)` in its `forward()` to sum partial results across ranks.",
+        "stub": "`shard_linear` is a single function returning the post-shard `(in_features, out_features)` tuple — no `nn.Module`, no `dist`, no all-reduce. The puzzle isolates the SLICE-WHICH-AXIS choice; the all-reduce side of row-parallel is covered narratively in the surrounding interludes."
       },
       "what_you_learn": [
         "Column-parallel: `out_features //= world_size`, each rank holds a tile of the output.",
@@ -614,6 +640,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "在 forward 之前就决定切哪根轴。",
           "difficulty": "入门",
           "summary": "`ColumnParallelLinear` 切 `out_features`,`RowParallelLinear` 切 `in_features`。切分发生在构造器里 —— `forward()` 拿到的已经是本地形状。",
+          "source_mapping": {
+            "real": "`ColumnParallelLinear` (`model.py:155-163`) 在构造器里把 `self.part_out_features = out_features // world_size` 算好,再 `super().__init__(in_features, self.part_out_features, ...)`,这样每个 rank 只分配自己那块。`RowParallelLinear` (`model.py:166-180`) 类似地切 `in_features`,并在 `forward()` 里加上 `dist.all_reduce(y)` 把各 rank 的部分和加起来。",
+            "stub": "`shard_linear` 只是一个返回切分后 `(in_features, out_features)` 元组的小函数 —— 没有 `nn.Module`,没有 `dist`,也没有 all-reduce。练习把“切哪根轴”这一决策单独剥出来;行并行的 all-reduce 部分由周围的导读章节补叙。"
+          },
           "what_you_learn": [
             "列并行:`out_features //= world_size`,每个 rank 存一段输出。",
             "行并行:`in_features //= world_size`,每个 rank 存一段输入,再 all-reduce。",
@@ -653,6 +683,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.1 Designs Inherited from DeepSeek-V3",
         "figure": "Figure 2",
         "summary": "RMSNorm is the default norm throughout the hybrid attention / MoE stack; its FP32 recipe is load-bearing for stability when activations live in FP8."
+      },
+      "source_mapping": {
+        "real": "`RMSNorm.forward` (`model.py:191-196`) is four vectorized lines: `x = x.float(); var = x.square().mean(-1, keepdim=True); x = x * torch.rsqrt(var + self.eps); return (self.weight * x).to(dtype)`. The FP32 promotion and the dtype round-trip are essential for stability when the input is BF16 / FP8.",
+        "stub": "Pure-Python list math: `sum(value * value for value in row) / len(row)` for the mean-square, and `1.0 / ((var + eps) ** 0.5)` for the inverse RMS. No FP32 promotion, no broadcasting, no dtype handling. The formula and the placement of `eps` inside the sqrt are identical — only the tensor mechanics are stripped."
       },
       "what_you_learn": [
         "Why mean-square (not variance) is enough — RMSNorm drops the mean.",
@@ -714,6 +748,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "方差 → rsqrt → 逐维缩放,先升到 FP32。",
           "difficulty": "入门",
           "summary": "DeepSeek-V4 虽然 checkpoint 里 RMSNorm 权重是 BF16,但参数在内存里是 FP32。计算流程是:x 升到 FP32 → 算均方 → rsqrt → 乘上 learned scale → 再转回原 dtype。",
+          "source_mapping": {
+            "real": "`RMSNorm.forward` (`model.py:191-196`) 是四行向量化代码:`x = x.float()`、`var = x.square().mean(-1, keepdim=True)`、`x = x * torch.rsqrt(var + self.eps)`、`return (self.weight * x).to(dtype)`。升到 FP32 再算、最后转回原 dtype 是数值稳定的关键(尤其是在 BF16 / FP8 输入下)。",
+            "stub": "纯 Python 列表实现:`sum(value * value for value in row) / len(row)` 算均方,`1.0 / ((var + eps) ** 0.5)` 算逆 RMS。没有 FP32 升精、没有广播、没有 dtype 转换。公式与 `eps` 在 `sqrt` 内部的位置都和真实代码一致,只是把张量机制剥掉了。"
+          },
           "what_you_learn": [
             "为什么 mean-square 就够了 —— RMSNorm 直接丢掉均值。",
             "为什么 `rsqrt(var + eps)` 能无分支避免除零。",
@@ -752,6 +790,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3 Hybrid Attention",
         "figure": "Figure 3 — CSA (query-key rotation)",
         "summary": "RoPE is the positional basis shared by the dense sliding-window part and the compressed KV path in CSA. Getting the frequency table right is a prerequisite for every later positional transform in the paper."
+      },
+      "source_mapping": {
+        "real": "Inside `precompute_freqs_cis` (`model.py:220`), this is a single vectorized expression: `freqs = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))`. It produces a 1-D FP32 tensor of length `dim // 2`, cached by `@lru_cache(2)` because it depends only on `dim` and `base`.",
+        "stub": "A Python `for i in range(0, dim, 2)` loop emits one float per even index. Same formula, just unrolled element-by-element so the math reads top-to-bottom — no `torch.arange`, no caching, no FP32 dtype management."
       },
       "what_you_learn": [
         "Why the exponent walks over EVEN indices — each pair `(2i, 2i+1)` shares one frequency.",
@@ -798,6 +840,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "YaRN 拉伸之前,先得有一张标准频率表。",
           "difficulty": "核心",
           "summary": "RoPE 的基石是一张几何递减的频率表:每个索引对 `i`,频率 θ_i = base^(-2i/dim)。这就是原版 RoPE 的公式。",
+          "source_mapping": {
+            "real": "`precompute_freqs_cis` 里 (`model.py:220`) 这是一行向量化表达式:`freqs = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))`。得到长度为 `dim // 2` 的 1-D FP32 张量,外层 `@lru_cache(2)` 因为它只依赖 `dim` 和 `base`。",
+            "stub": "用 `for i in range(0, dim, 2)` 把每个偶数索引的频率单独算出来。公式完全一致,只是元素一对一展开,便于自上而下读懂数学 —— 没有 `torch.arange`、没有 lru_cache、没有 FP32 dtype 管理。"
+          },
           "what_you_learn": [
             "为什么频率对维度呈几何递减 —— 低维对应低频(长周期),高维对应高频(短周期)。",
             "`torch.arange(0, dim, 2)` 为什么跳步 —— 每两个维度共用一个旋转角。",
@@ -837,6 +883,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.3 Other Details",
         "figure": "Figure 3",
         "summary": "DeepSeek-V4 uses YaRN to push the trained RoPE table out to 1M-token context without retraining. The linear-ramp smooth mask below is the mechanism that selectively protects high-frequency bands."
+      },
+      "source_mapping": {
+        "real": "After `smooth = 1 - linear_ramp_factor(low, high, dim // 2)`, `precompute_freqs_cis` (`model.py:221-229`) does the convex combination `freqs = freqs / factor * (1 - smooth) + freqs * smooth` (broadcasted over the frequency band axis), then `freqs = torch.outer(t, freqs)` to build the full angle grid, and finally `torch.polar(torch.ones_like(freqs), freqs)` converts to the complex-exponential `freqs_cis` table consumed by `apply_rotary_emb`.",
+        "stub": "Two explicit Python loops — one per-band convex combination, one outer-product row. The polar / complex-exponential conversion is deferred to S07, which uses Python's built-in `complex` instead of `torch.view_as_complex`."
       },
       "what_you_learn": [
         "Why the interpolation is a convex combination `freq/factor·(1−s) + freq·s`.",
@@ -897,6 +947,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "低频拉伸 `1/factor`,高频保持原样,中间用线性斜坡。",
           "difficulty": "核心",
           "summary": "要扩展上下文长度时,YaRN 按频率打分:低频维度整体除以 `factor`,高频维度保持,中间区间用 `linear_ramp_factor` 做线性过渡。最后用 `outer(t, freqs)` 乘上时间步,送去 `polar`。",
+          "source_mapping": {
+            "real": "在算出 `smooth = 1 - linear_ramp_factor(low, high, dim // 2)` 之后,`precompute_freqs_cis` (`model.py:221-229`) 用张量广播完成凸组合 `freqs = freqs / factor * (1 - smooth) + freqs * smooth`,然后 `freqs = torch.outer(t, freqs)` 生成完整角度网格,最后 `torch.polar(torch.ones_like(freqs), freqs)` 把它转成复指数 `freqs_cis`,供 `apply_rotary_emb` 使用。",
+            "stub": "两个显式 Python 循环:一个做逐频段凸组合,一个做时间 × 频率外积行。极坐标 / 复指数转换被推迟到 S07,而 S07 用的是 Python 内置 `complex`,代替 `torch.view_as_complex`。"
+          },
           "what_you_learn": [
             "为什么只压缩低频 —— 模型已经在原长度上学会了高频,不要扰动。",
             "`smooth` 为什么要 clip 到 `[0, 1]` —— 边界外的频率维度要么完全拉伸、要么完全保留。",
@@ -936,6 +990,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.1 Compressed Sparse Attention",
         "figure": "Figure 3",
         "summary": "DSA-style attention rotates both Q and K in CSA, then *unrotates* the attention output via the inverse path so that the residual stream stays un-rotated — this conjugate trick replaces a second matrix parameter."
+      },
+      "source_mapping": {
+        "real": "`apply_rotary_emb` (`model.py:232-244`) does `x = torch.view_as_complex(x.float().unflatten(-1, (-1, 2)))`, optionally `freqs_cis = freqs_cis.conj()` for inverse, then `x = torch.view_as_real(x * freqs_cis).flatten(-2)` and writes back in-place via `y.copy_(x)`. FP32 promotion is mandatory — BF16 lacks the precision for the complex multiply at long-context positions.",
+        "stub": "Uses Python's built-in `complex(x, y)` to pack adjacent floats into complex numbers — a stand-in for `view_as_complex`. The conjugate-on-inverse trick is identical; the only differences are no in-place writeback, no FP32 promotion, and no broadcast-shape juggling for 3-D vs 4-D inputs."
       },
       "what_you_learn": [
         "Why inverse rotation is just the complex conjugate — no separate coefficients.",
@@ -996,6 +1054,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "相邻两维看作复数,乘上 freqs_cis。",
           "difficulty": "核心",
           "summary": "`apply_rotary_emb` 把 `x` 的最后两维看成复数对,乘上 `freqs_cis`,再拍回实数。`inverse=True` 时取共轭 —— 这是把注意力输出从 RoPE 空间反旋回模型空间的方式。",
+          "source_mapping": {
+            "real": "`apply_rotary_emb` (`model.py:232-244`) 先 `x = torch.view_as_complex(x.float().unflatten(-1, (-1, 2)))`,如有需要 `freqs_cis = freqs_cis.conj()` 取共轭,再 `x = torch.view_as_real(x * freqs_cis).flatten(-2)`,最后通过 `y.copy_(x)` 原地写回。FP32 升精是必须的 —— BF16 在长上下文下不够算复数乘。",
+            "stub": "用 Python 内置 `complex(x, y)` 把相邻两个 float 拼成复数,作为 `view_as_complex` 的占位。逆旋转取共轭的技巧完全一致;唯一不同是没有原地写回 (`y.copy_(x)`)、没有 FP32 升精,也不必为 3-D / 4-D 输入做广播形状调整。"
+          },
           "what_you_learn": [
             "相邻两维如何打包成复数 —— `view_as_complex` + `unflatten`。",
             "为什么 `inverse=True` 只需对 `freqs_cis` 取共轭。",
@@ -1034,6 +1096,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.1 Compressed Sparse Attention — eq. (11) & (12)",
         "figure": "Figure 3",
         "summary": "This is the central equation behind CSA: per-window softmax over `Z`, then a Hadamard-weighted sum of `C` — reducing n tokens into n/m compressed entries."
+      },
+      "source_mapping": {
+        "real": "`Compressor.forward` (`model.py:316-342`) projects `kv = self.wkv(x)` and `score = self.wgate(x)`, calls `kv = kv.unflatten(1, (-1, ratio))` to slice the sequence into windows, adds the learned positional embedding `self.ape`, optionally calls `self.overlap_transform` for `compress_ratio == 4`, and finally fuses the per-window pool as `kv = (kv * score.softmax(dim=2)).sum(dim=2)` — one softmax-then-weighted-sum tensor expression.",
+        "stub": "An explicit Python `for start in range(0, len(kv_rows), ratio)` loop slices the sequence, then `weighted_sum(window, softmax(scores))` does the per-window pool. The puzzle ignores the `wkv` / `wgate` projections, the `self.ape` embedding, the overlap transform, and the decode-state buffers (those are covered in interludes i09 / i10) so you focus on the softmax-pool recipe itself."
       },
       "what_you_learn": [
         "Why the softmax goes along the WINDOW axis — it redistributes weight across the m entries, not across features.",
@@ -1093,6 +1159,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "一整段序列一次性压缩,池化出每个窗口的代表。",
           "difficulty": "核心",
           "summary": "Prefill 阶段一次吃掉整段输入,按 `compress_ratio` 做分块池化:先检查剩下的 token 是否至少能凑出一个窗口,再在每个窗口上做 `softmax(score) * kv` 的加权和。",
+          "source_mapping": {
+            "real": "`Compressor.forward` (`model.py:316-342`) 先做投影 `kv = self.wkv(x)`、`score = self.wgate(x)`,再 `kv = kv.unflatten(1, (-1, ratio))` 把序列切成窗口,加上可学习位置编码 `self.ape`,在 `compress_ratio == 4` 时调用 `self.overlap_transform` 走重叠窗口模式,最后用一个张量表达式融合 softmax + 加权求和:`kv = (kv * score.softmax(dim=2)).sum(dim=2)`。",
+            "stub": "纯 Python `for start in range(0, len(kv_rows), ratio)` 把序列切片,再用 `weighted_sum(window, softmax(scores))` 做窗口内池化。练习略去了 `wkv` / `wgate` 投影、`self.ape` 位置嵌入、重叠窗口变换以及 decode 状态缓冲(那些放在导读 i09 / i10),让你专注于 softmax 池化的核心配方。"
+          },
           "what_you_learn": [
             "为什么要显式判断 `len(kv_rows) >= ratio` —— 避免半个窗口被塌缩成无意义的均值。",
             "块内 softmax 为什么要配着 `weighted_sum` —— 这是最小版本的 attention。",
@@ -1131,6 +1201,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.3 Other Details (Sliding Window)",
         "figure": "Figure 3",
         "summary": "CSA augments sparse top-k with a small sliding window to preserve fine-grained local structure. This code is where that window survives across autoregressive steps."
+      },
+      "source_mapping": {
+        "real": "Inside `Attention.forward` (`model.py:517-533`), short prefill is `self.kv_cache[:bsz, :seqlen] = kv`; long prefill splits and rotates so the ring already starts at the correct position: `cutoff = seqlen % win`, then `self.kv_cache[:bsz, cutoff:win], self.kv_cache[:bsz, :cutoff] = kv[:, -win:].split([win - cutoff, cutoff], dim=1)`. Decode is a single in-place tensor index write at slot `start_pos % win`.",
+        "stub": "`write_kv_cache` operates on a Python `list` instead of a `torch.Tensor` and skips the prefill split/rotate trick — it just keeps the last `window_size` elements unrotated. The decode branch's `start_pos % window_size` index is identical to the real code."
       },
       "what_you_learn": [
         "Why the prefill path falls back to `values[-window_size:]` when the input is longer than the window.",
@@ -1190,6 +1264,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "Prefill 保留尾巴,decode 在 `(start_pos mod W)` 覆写。",
           "difficulty": "核心",
           "summary": "只有最近 `window_size` 个 token 会被保留。Prefill 时把序列末尾原样写入;decode 时用 ring-buffer 覆盖最旧的位置 —— 任何时刻都只保存最近一个窗口。",
+          "source_mapping": {
+            "real": "在 `Attention.forward` (`model.py:517-533`) 里,短 prefill 是 `self.kv_cache[:bsz, :seqlen] = kv`;长 prefill 会切片再旋转,使环形缓冲一开始就在正确位置上:`cutoff = seqlen % win`,然后 `self.kv_cache[:bsz, cutoff:win], self.kv_cache[:bsz, :cutoff] = kv[:, -win:].split([win - cutoff, cutoff], dim=1)`。Decode 是单次原地索引写,落在 `start_pos % win` 槽位。",
+            "stub": "`write_kv_cache` 操作的是 Python `list` 而非 `torch.Tensor`,也跳过了长 prefill 的切片旋转 —— 只保留最后 `window_size` 个元素。Decode 分支的 `start_pos % window_size` 索引和真实代码完全一致。"
+          },
           "what_you_learn": [
             "为什么 prefill 的尾巴是 `values[-window_size:]`。",
             "`start_pos % window_size` 如何形成 ring-buffer 行为。",
@@ -1228,6 +1306,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.1 CSA — eq. (17)",
         "figure": "Figure 3",
         "summary": "This is the data-plane version of eq. (17): the union of sliding-window KV and top-k compressed KV, which the sparse attention kernel reads in lock-step."
+      },
+      "source_mapping": {
+        "real": "In `Attention.forward` (`model.py:507-516`), this is `topk_idxs = get_window_topk_idxs(win, bsz, seqlen, start_pos)` followed by `topk_idxs = torch.cat([topk_idxs, compress_topk_idxs], dim=-1)` and `topk_idxs = topk_idxs.int()`. Crucially the `-1` sentinel is NOT filtered here — it is read by `sparse_attn_kernel` (`kernel.py:323-327`) which masks `idxs[i] != -1` to zero out those gather lanes.",
+        "stub": "`build_topk_plan` does the concat in pure Python and additionally filters `-1` out of the result. That trailing filter is purely a *test affordance* so the validator can compare a clean list — the real production path keeps the sentinels in place all the way to the kernel."
       },
       "what_you_learn": [
         "Why `-1` is kept as an explicit sentinel rather than excised early — the kernel uses it to zero-out contributions.",
@@ -1274,6 +1356,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "先取窗口索引,再拼上压缩索引(若有)。",
           "difficulty": "核心",
           "summary": "稀疏注意力需要一张统一的 topk 索引表。本节把 *窗口索引*(最近的真实位置)和 *压缩索引*(Indexer 或静态公式)沿最后一维拼接起来。只有压缩部分非空时才需要拼;否则原样返回窗口索引。",
+          "source_mapping": {
+            "real": "在 `Attention.forward` (`model.py:507-516`) 中,流程是 `topk_idxs = get_window_topk_idxs(win, bsz, seqlen, start_pos)`,再 `topk_idxs = torch.cat([topk_idxs, compress_topk_idxs], dim=-1)`,最后 `topk_idxs = topk_idxs.int()`。关键点:`-1` 哨兵在这里 *不* 被过滤 —— 它会被 `sparse_attn_kernel` (`kernel.py:323-327`) 通过 `idxs[i] != -1` 掩码,把那条 gather 通道清零。",
+            "stub": "`build_topk_plan` 在纯 Python 里做拼接,并额外把 `-1` 过滤掉。这个尾巴上的过滤纯粹是 *测试便利* —— 校验器需要一个干净的列表;真正的生产路径会一直保留哨兵,把它送到 kernel。"
+          },
           "what_you_learn": [
             "`compress_topk` 什么时候为空 —— `compress_ratio == 0` 的纯滑动窗口层。",
             "为什么索引用 `-1` 表示“跳过” —— kernel 会按此掩码。",
@@ -1310,6 +1396,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.1 Lightning Indexer — eq. (15)/(16)",
         "figure": "Figure 3",
         "summary": "Equations 15–16 in the paper. The ReLU is critical — it zeroes out negative alignments so the top-k survives noisy queries."
+      },
+      "source_mapping": {
+        "real": "Inside `Indexer.forward` (`model.py:418-427`), the score is `index_score = torch.einsum('bshd,btd->bsht', q, self.kv_cache[:bsz, :end_pos // ratio])` — a batched per-head Q·K — followed by `(index_score.relu_() * weights.unsqueeze(-1)).sum(dim=2)`. The result is all-reduced across TP ranks, masked, and finally fed to `topk(...)`.",
+        "stub": "An explicit triple-loop (head, then dot-product, then accumulate) computes the same scalar score for one (q, k) pair. No batching, no `einsum`, no `topk` — the puzzle isolates the per-head ReLU + head-weighted-sum recipe; the surrounding top-k selection is structurally trivial once the score is correct."
       },
       "what_you_learn": [
         "Why ReLU clips negatives — negative alignments shouldn't pull a key into the top-k.",
@@ -1369,6 +1459,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "对每个 (q, k) 计算 ReLU(q·k),按 head 加权求和。",
           "difficulty": "核心",
           "summary": "Indexer 用每个 head 的 q 与压缩 KV 做点积,经 ReLU 抑制负得分,然后按 `head_weights[h]` 对 head 做加权求和,得到每个 query 对每个压缩位置的得分。",
+          "source_mapping": {
+            "real": "`Indexer.forward` (`model.py:418-427`) 用 `index_score = torch.einsum('bshd,btd->bsht', q, self.kv_cache[:bsz, :end_pos // ratio])` 做批量化的逐 head Q·K,接着 `(index_score.relu_() * weights.unsqueeze(-1)).sum(dim=2)` 沿 head 维加权求和。结果会跨 TP rank 做 all-reduce、应用因果掩码,最后送进 `topk(...)`。",
+            "stub": "三层显式 Python 循环(head → 点积 → 累加),为单个 (q, k) 算出同样的标量得分。没有 batch、没有 `einsum`、也没有 `topk` —— 练习只把“逐 head ReLU + head 加权求和”这个核心配方剥出来;一旦得分算对,top-k 选择部分就是自然的事。"
+          },
           "what_you_learn": [
             "为什么用 ReLU 而不是 softmax —— 得分本身就用于排序,ReLU 足以剔除负贡献。",
             "head 加权让不同 head 可以学到不同的重要性。",
@@ -1407,6 +1501,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.1 Designs Inherited — activation change from sigmoid to sqrtsoftplus",
         "figure": "Figure 2",
         "summary": "Paper change from V3: the affinity function is `sqrt(softplus(·))`, and a bias-assisted top-k keeps load balanced without distorting the routing weights."
+      },
+      "source_mapping": {
+        "real": "`Gate.forward` (`model.py:564-584`) does `scores = linear(x.float(), self.weight.float())`, applies the chosen activation (default `F.softplus(scores).sqrt()`), saves `original_scores = scores`, and only THEN adds `self.bias` for selection. Indices come from `scores.topk(self.topk, dim=-1)[1]`, weights come from `original_scores.gather(1, indices)`, and non-softmax branches additionally re-normalize via `weights /= weights.sum(...)`.",
+        "stub": "The puzzle replaces `sqrt(softplus(...))` with plain `softmax` for simplicity, but keeps the critical separation between *shifted* scores (used to pick the top-k) and *original* scores (used for the routing weight). Python helpers `topk_indices` and `gather` mirror their PyTorch counterparts one-to-one."
       },
       "what_you_learn": [
         "Why the bias term only influences SELECTION, not the final routing weight.",
@@ -1466,6 +1564,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "偏置只影响专家选择,不影响最终路由权重。",
           "difficulty": "核心",
           "summary": "Gate 的关键技巧:`bias` 加到打分上只用于 topk 专家选择,但最终路由权重要从 *原始* (不带偏置的) scores 里 gather。这是 DeepSeek-V3 引入的 top-k 偏置 trick。",
+          "source_mapping": {
+            "real": "`Gate.forward` (`model.py:564-584`) 先 `scores = linear(x.float(), self.weight.float())`,再走选定的激活(默认是 `F.softplus(scores).sqrt()`),保存 `original_scores = scores`,然后只为选 top-k 加上 `self.bias`。索引来自 `scores.topk(self.topk, dim=-1)[1]`,权重来自 `original_scores.gather(1, indices)`。非 softmax 分支再做一次 `weights /= weights.sum(...)` 重归一。",
+            "stub": "练习把 `sqrt(softplus(...))` 简化成普通 `softmax`,但保留了 *最关键* 的设计:挑 top-k 用的是 *加偏置后* 的得分,而最终路由权重要从 *原始* 得分里 gather。Python 辅助函数 `topk_indices` / `gather` 与 PyTorch 原生算子一一对应。"
+          },
           "what_you_learn": [
             "为什么 bias 不能影响 routing 权重 —— 那会引入不公平的幅值偏差。",
             "`gather(1, indices)` 如何按索引从原始分数里拿值。",
@@ -1504,6 +1606,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.1 DeepSeekMoE",
         "figure": "Figure 2",
         "summary": "Fine-grained experts + shared expert is the DeepSeekMoE recipe; the sparse execution below avoids launching inactive experts entirely."
+      },
+      "source_mapping": {
+        "real": "`MoE.forward` (`model.py:630-645`) does `counts = torch.bincount(indices.flatten(), minlength=...).tolist()` to skip empty experts, then for each active expert `i`: `idx, top = torch.where(indices == i); y[idx] += expert(x[idx], weights[idx, top, None])`. After the routed loop it all-reduces `y` across TP ranks and unconditionally adds `y += self.shared_experts(x)`.",
+        "stub": "Pure-Python equivalents: `count_indices` mirrors `bincount`, the comprehension `[(t, k) for t, row in enumerate(routed) ...]` mirrors `torch.where`, and outputs are scalars instead of tensor rows. The bincount-based skip and the shared-expert add are preserved exactly."
       },
       "what_you_learn": [
         "Why `bincount` is a cheap way to avoid launching inactive experts.",
@@ -1563,6 +1669,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "按专家分桶,每个 token 按权重累加。",
           "difficulty": "核心",
           "summary": "对每个专家 `i`,找出所有路由到它的 (token, top_slot) 对,送入专家网络,再按 `weights[token][top_slot]` 累加到输出。",
+          "source_mapping": {
+            "real": "`MoE.forward` (`model.py:630-645`) 用 `counts = torch.bincount(indices.flatten(), minlength=...).tolist()` 把不命中的专家直接跳过;对每个活跃专家 `i`:`idx, top = torch.where(indices == i); y[idx] += expert(x[idx], weights[idx, top, None])`。路由循环之后 `y` 跨 TP rank 做 all-reduce,然后无条件追加 `y += self.shared_experts(x)`。",
+            "stub": "纯 Python 等价物:`count_indices` 对应 `bincount`,`[(t, k) for t, row in enumerate(routed) ...]` 对应 `torch.where`,输出是标量而非张量行。基于 bincount 的跳过、共享专家无条件累加都原样保留。"
+          },
           "what_you_learn": [
             "`expert_positions` 如何枚举 (token, top_slot) 对。",
             "为什么权重要取 `weights[t][k]` —— top_slot 位置而不是专家 id。",
@@ -1601,6 +1711,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.1 DeepSeekMoE Experts",
         "figure": "—",
         "summary": "Standard SwiGLU FFN reused from V3; DeepSeek-V4 additionally supports FP4 routed-expert weights via the Linear dispatch you built in s01."
+      },
+      "source_mapping": {
+        "real": "`Expert.forward` (`model.py:596-606`) computes `gate = self.w1(x).float(); up = self.w3(x).float()`, optionally clamps `up` and `gate` to `self.swiglu_limit`, then `x = F.silu(gate) * up`, applies `weights * x` if MoE-routed, and finally projects back via `self.w2(x.to(dtype))`. All three linears go through your `linear()` dispatcher from S01.",
+        "stub": "The puzzle skips both the `w1` / `w2` / `w3` projections and the optional clamping — it focuses on the `silu(gate) * up` core multiplication, elementwise in pure Python. The optional `route_weight` knob is preserved because that one line is reused inside the MoE loop in S13."
       },
       "what_you_learn": [
         "Why SwiGLU multiplies SiLU(gate) elementwise with a separate `up` projection.",
@@ -1647,6 +1761,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "`SiLU(gate) * up`,再过 w2。",
           "difficulty": "核心",
           "summary": "SwiGLU 的核心是把 FFN 的激活拆成两路:`w1(x)` 作为门 gate,`w3(x)` 作为 up;最终激活是 `SiLU(gate) * up`,再过一次 `w2` 投回来。",
+          "source_mapping": {
+            "real": "`Expert.forward` (`model.py:596-606`) 计算 `gate = self.w1(x).float()`、`up = self.w3(x).float()`,在 `swiglu_limit > 0` 时对 `up` 和 `gate` 做截断,然后 `x = F.silu(gate) * up`,如果是 MoE 路由 再乘 `weights * x`,最后通过 `self.w2(x.to(dtype))` 投回。三个 linear 全部走 S01 写好的 `linear()` 分发器。",
+            "stub": "练习既跳过了 `w1` / `w2` / `w3` 投影,也跳过了可选的截断 —— 焦点放在 `silu(gate) * up` 这条逐元素核心运算,用纯 Python 实现。可选的 `route_weight` 旋钮保留了下来,因为这一行会在 S13 的 MoE 循环里复用。"
+          },
           "what_you_learn": [
             "SwiGLU 相比 ReLU/GELU 的优势 —— 可学习的门控。",
             "`SiLU(x) = x * sigmoid(x)` 的逐元素实现。",
@@ -1683,6 +1801,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.2 Manifold-Constrained Hyper-Connections — eq. (3)",
         "figure": "Figure 2 (Residual/Pre-Block/Post-Block Mixing)",
         "summary": "eq. (3) writes the input mapping Â_l · X_l; the code below is the fused RMS-norm + mixing step that materialises it at each block boundary."
+      },
+      "source_mapping": {
+        "real": "`Block.hc_pre` (`model.py:674-682`) flattens `[b, s, hc, d] → [b, s, hc*d]`, computes `rsqrt = torch.rsqrt(x.square().mean(-1, keepdim=True) + eps)`, projects `mixes = F.linear(x, hc_fn) * rsqrt`, then calls the TileLang kernel `hc_split_sinkhorn(mixes, hc_scale, hc_base, ...)` which returns `(pre, post, comb)`. Finally `y = (pre.unsqueeze(-1) * x.view(shape)).sum(dim=2)` collapses the `hc` lane axis with a learned weighted sum.",
+        "stub": "The puzzle skips the `hc_fn` projection AND the TileLang Sinkhorn kernel entirely — it pre-supplies the lane logits as an input and only asks you to wire the rsqrt-scale → softmax-like-normalize → weighted-collapse pipeline. The Sinkhorn kernel itself is the subject of S20."
       },
       "what_you_learn": [
         "Why mixing weights come from the CURRENT token, not a fixed residual coefficient.",
@@ -1743,6 +1865,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "用逆 RMS 缩放 logit,按 lane 权重收拢。",
           "difficulty": "进阶",
           "summary": "HC 预混合先用 `rsqrt` 归一化每行的幅值,得到 logits;再按每个 lane 的权重,把 `hc_mult` 份拷贝塌缩为一份送入子层。",
+          "source_mapping": {
+            "real": "`Block.hc_pre` (`model.py:674-682`) 把 `[b, s, hc, d]` flatten 成 `[b, s, hc*d]`,算 `rsqrt = torch.rsqrt(x.square().mean(-1, keepdim=True) + eps)`,投影 `mixes = F.linear(x, hc_fn) * rsqrt`,再调 TileLang kernel `hc_split_sinkhorn(mixes, hc_scale, hc_base, ...)` 拿到 `(pre, post, comb)`;最后 `y = (pre.unsqueeze(-1) * x.view(shape)).sum(dim=2)` 沿 hc lane 做加权塌缩。",
+            "stub": "练习把 `hc_fn` 投影 *和* TileLang Sinkhorn kernel 都跳过 —— 直接把 lane logits 作为输入传进来,只让你把 rsqrt 缩放 → 类 softmax 归一化 → 加权塌缩这条流水线接通。Sinkhorn kernel 本身留到 S20。"
+          },
           "what_you_learn": [
             "`rsqrt(mean_square + eps)` 为什么作为逐行 scale。",
             "`weights[lane]` 如何把多份 lane 加权合并。",
@@ -1781,6 +1907,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.2 Manifold-Constrained Hyper-Connections — eq. (5), (7)",
         "figure": "Figure 2",
         "summary": "eq. (5) + eq. (7) spell out the output mapping C_l and the residual mixing B_l; together they give us this closed-form post-mix."
+      },
+      "source_mapping": {
+        "real": "`Block.hc_post` (`model.py:684-687`) is a single tensor expression: `y = post.unsqueeze(-1) * x.unsqueeze(-2) + torch.sum(comb.unsqueeze(-1) * residual.unsqueeze(-2), dim=2)`. Two broadcast multiplies and a reduction over source lanes — closed form, no loops.",
+        "stub": "Two nested Python loops over `(lane, col)` make the broadcast pattern explicit. Each cell is `post[lane] * x[col] + sum(comb[lane][src] * residual[src][col] for src in ...)` — exactly the closed form, just unrolled so the indexing is immediately legible."
       },
       "what_you_learn": [
         "Why the new output is BROADCAST into every lane via `post`.",
@@ -1840,6 +1970,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "fresh 分支 + 残差重组,恢复 hc_mult 份。",
           "difficulty": "进阶",
           "summary": "HC 后混合把单份输出(`x`)乘到每个 lane(fresh 分支),再把残差的各 lane 按 `comb[lane][src]` 加权求和(residual_mix),两部分相加得到新的 hc_mult 份。",
+          "source_mapping": {
+            "real": "`Block.hc_post` (`model.py:684-687`) 是一行张量表达式:`y = post.unsqueeze(-1) * x.unsqueeze(-2) + torch.sum(comb.unsqueeze(-1) * residual.unsqueeze(-2), dim=2)`。两次广播乘 + 一次沿源 lane 求和 —— 闭式无循环。",
+            "stub": "用两层 Python 嵌套循环 (`lane`, `col`) 把上面的广播展开。每个格子是 `post[lane] * x[col] + sum(comb[lane][src] * residual[src][col] for src in ...)` —— 完全是闭式表达式,只是把索引一一展开,可读性更强。"
+          },
           "what_you_learn": [
             "fresh 分支 `post[lane] * x[col]` 的广播含义。",
             "`comb` 是 hc×hc 的方阵,把 src lane 映射到 dst lane。",
@@ -1879,6 +2013,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§3.4 FP4 QAT + §3.2 TileLang kernels",
         "figure": "Figure 2 (mixed-precision path)",
         "summary": "This is the FP8 activation quant kernel referenced by §3.2; `scale_fmt='ue8m0'` additionally rounds the scale to a power-of-two, matching MXFP8 semantics."
+      },
+      "source_mapping": {
+        "real": "`act_quant_kernel` (`kernel.py:40-102`) is a TileLang `@tilelang.jit` GPU kernel. It splits the input into `[blk_m=32, group_size=128]` tiles in shared memory, calls `T.reduce_absmax` along the group axis, applies the floor `T.max(amax, 1e-4)`, optionally rounds to a power-of-two scale via `fast_round_scale` (the MXFP path), then either clamps + casts to FP8 or runs an in-place QAT round-trip back to BF16 (`inplace=True`).",
+        "stub": "A pure-Python `quantize_row` walks the row block-by-block in a `for` loop. No GPU, no shared memory, no `T.reduce_absmax`, no power-of-two rounding (mentioned only in pitfalls). The puzzle nails down the divide-then-clamp recipe and the `max(amax, 1e-4)` floor — those carry over verbatim to the kernel."
       },
       "what_you_learn": [
         "Why the floor `max(absmax, 1e-4)` keeps extremely cold blocks from producing zero scales.",
@@ -1938,6 +2076,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "absmax → scale → divide + clamp。",
           "difficulty": "核心",
           "summary": "kernel 在每个 `[blk_m, group_size]` 块里 `reduce_absmax`,然后用 `max(amax, 1e-4) / FP8_MAX` 得到 scale。`inplace=True` 时先除 scale → cast FP8 → 乘 scale(QAT 模拟);否则直接 clamp 到 FP8 范围后输出。",
+          "source_mapping": {
+            "real": "`act_quant_kernel` (`kernel.py:40-102`) 是一个 `@tilelang.jit` 修饰的 GPU kernel。它把输入切成 `[blk_m=32, group_size=128]` 的 tile 加载到共享内存,沿 group 轴做 `T.reduce_absmax`,施加 `T.max(amax, 1e-4)` 下限;按需通过 `fast_round_scale` 把 scale 圆到 2 的幂(MXFP 路径);最后要么 clamp + cast 到 FP8,要么走 `inplace=True` 的 QAT 往返(回到 BF16)。",
+            "stub": "纯 Python `quantize_row` 用 `for` 循环逐块走过一行。没有 GPU、没有共享内存、没有 `T.reduce_absmax`、也没有 2 的幂取整(只在 pitfalls 里提了一下)。练习钉死了 divide-then-clamp 配方与 `max(amax, 1e-4)` 下限 —— 这两点直接照搬到 kernel 里也成立。"
+          },
           "what_you_learn": [
             "为什么需要 `max(amax, 1e-4)` —— 防止全零块产生除零。",
             "`round_scale` 和 `scale_fmt` 的关系 —— MXFP 需要 2 的幂次 scale。",
@@ -1977,6 +2119,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§3.4 FP4 Quantization-Aware Training",
         "figure": "§3.4 Table (scale shapes)",
         "summary": "The asymmetric scale grids (act 1×128 vs weight 1×32) are a direct consequence of how FP4 QAT stabilises routed-expert weights in DeepSeek-V4."
+      },
+      "source_mapping": {
+        "real": "`fp4_gemm_kernel` (`kernel.py:441-515`) is a TileLang kernel performing FP8(act) × FP4(weight) GEMM. It loads FP4 sub-blocks of size `[block_N, 32]`, casts FP4 → FP32 → FP8, runs FP8×FP8 `T.gemm`, and applies the act scale (one per 128-K group) AND the weight scale (one per 32-K group) to a second accumulator. With `n_sub = act_group_size // block_K = 4`, every 4 weight sub-blocks share one act scale.",
+        "stub": "A pure-Python triple-loop reproduces the K-axis arithmetic ONLY: `act_group = kk // (block_k * n_sub)` and `weight_group = kk // block_k`. There is no FP4 packing, no FP4→FP8 cast, no real GEMM — the puzzle exists to verify you derive the correct *index math* the kernel needs."
       },
       "what_you_learn": [
         "Why four 32-wide weight sub-blocks share ONE activation scale.",
@@ -2036,6 +2182,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "激活 scale 每 128、权重 scale 每 32,K 方向对齐。",
           "difficulty": "进阶",
           "summary": "FP4 GEMM 的关键:激活 scale 粒度为 128 (沿 K),权重 scale 粒度为 32 (沿 K);kernel 在 K 循环里用不同的粒度索引:权重按 `kk // block_k`,激活按 `kk // (block_k * n_sub)`。",
+          "source_mapping": {
+            "real": "`fp4_gemm_kernel` (`kernel.py:441-515`) 是个 TileLang kernel,做的是 FP8(act) × FP4(weight) GEMM。它一次加载 `[block_N, 32]` 的 FP4 子块,把 FP4 通过 FP32 转到 FP8,跑 FP8×FP8 的 `T.gemm`,然后在第二个累加器里同时乘上激活 scale(每 128-K 一个)和权重 scale(每 32-K 一个)。由 `n_sub = act_group_size // block_K = 4` 可知,每 4 个权重子块共享一个激活 scale。",
+            "stub": "三层纯 Python 循环复刻 K 轴算术 —— *只复刻这一部分*:`act_group = kk // (block_k * n_sub)`、`weight_group = kk // block_k`。没有 FP4 打包、没有 FP4→FP8 cast、也没有真实 GEMM —— 练习只为验证你能不能写对 kernel 需要的 *索引算术*。"
+          },
           "what_you_learn": [
             "`n_sub = act_group_size // block_K = 4` —— 激活的一个 scale 覆盖 4 个权重块。",
             "为什么 FP4 → FP8 的 cast 要经过 FP32 —— C++ 重载消歧。",
@@ -2075,6 +2225,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.1 CSA — eq. (18)-(19)",
         "figure": "Figure 3",
         "summary": "Sparse attention with top-k KV entries; the online softmax below is the kernel recipe inside `sparse_attn_kernel`."
+      },
+      "source_mapping": {
+        "real": "`sparse_attn_kernel` (`kernel.py:276-352`) is a FlashAttention-style TileLang kernel. It pipelines 64-token blocks of top-k indices, gathers KV via `T.if_then_else(idxs[i] != -1, kv[by, idxs[i], j], 0)`, runs `T.gemm(q_shared, kv_shared, acc_s, transpose_B=True)` for the scores, maintains per-head `scores_max` / `sum_exp`, rescales `acc_o` by `T.exp(scores_max_prev - scores_max)` each step, and folds in `T.exp(attn_sink[i] - scores_max[i])` only at the very end.",
+        "stub": "A scalar Python implementation operating on one query and one head. No tiling, no shared memory, no `T.gemm`. The running-max / running-sum update equations and the rescale `exp(prev_max - running_max)` are line-for-line identical to the kernel — only the parallelism is missing."
       },
       "what_you_learn": [
         "Why the max update must rescale BOTH the numerator AND the denominator.",
@@ -2161,6 +2315,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "running max + running sum,再加 attn_sink。",
           "difficulty": "进阶",
           "summary": "稀疏注意力逐块更新 running max 和 running sum:先 `exp(score - running_max)` 累加分子/分母,然后把 `attn_sink` 作为一个虚拟的 logit 加到最终分母上。",
+          "source_mapping": {
+            "real": "`sparse_attn_kernel` (`kernel.py:276-352`) 是 FlashAttention 风格的 TileLang kernel。它按 64-token 一块流水线处理 top-k 索引,gather 时用 `T.if_then_else(idxs[i] != -1, kv[by, idxs[i], j], 0)` 处理哨兵,走 `T.gemm(q_shared, kv_shared, acc_s, transpose_B=True)` 算分数,维护逐 head 的 `scores_max` / `sum_exp`,每步用 `T.exp(scores_max_prev - scores_max)` 重缩放 `acc_o`,最后才把 `T.exp(attn_sink[i] - scores_max[i])` 折进分母。",
+            "stub": "标量 Python 实现:单个 query、单个 head。没有分块、没有共享内存、没有 `T.gemm`。running-max / running-sum 的更新方程,以及 `exp(prev_max - running_max)` 的 rescale,和 kernel 里的写法逐行对应 —— 只是缺了并行化部分。"
+          },
           "what_you_learn": [
             "在线 softmax 如何用增量 max 保持数值稳定。",
             "为什么分母要再加一个 sink 项 —— 给模型一个“不聚焦”的选项。",
@@ -2201,6 +2359,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.2 mHC — eq. (8)",
         "figure": "Figure 2 (Residual Mixing)",
         "summary": "eq. (8) is the Sinkhorn-Knopp iteration; the manifold constraint caps the spectral norm of `B_l` at 1 and stabilises the deep HC stack."
+      },
+      "source_mapping": {
+        "real": "`hc_split_sinkhorn_kernel` (`kernel.py:371-438`) is a TileLang kernel that computes `pre`, `post`, and `comb` per token from the `mixes` projection. For `comb`, it row-softmaxes (with `+ eps`), normalises columns, then alternates row/col normalisation for `sinkhorn_iters - 1` more rounds — all in shared memory inside one TileLang block per token, parallel across the batch×seq axis.",
+        "stub": "Pure-Python alternating `normalize_rows` / `normalize_cols`, starting from a `softmax_rows(matrix)` call (mirroring the kernel's row-softmax-with-eps step). The loop body and convergence behaviour are identical; only the per-token parallelism and the GPU shared-memory allocation are missing."
       },
       "what_you_learn": [
         "Why a row-normalised matrix isn't doubly stochastic — you need columns too.",
@@ -2273,6 +2435,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "交替归一化行与列,收敛到双随机矩阵。",
           "difficulty": "进阶",
           "summary": "Sinkhorn 迭代把任意非负矩阵逼近到双随机:每轮先归一化行,再归一化列。epsilon 防止零行/零列导致除零。",
+          "source_mapping": {
+            "real": "`hc_split_sinkhorn_kernel` (`kernel.py:371-438`) 是个 TileLang kernel,逐 token 算出 `pre`、`post`、`comb`。对 `comb` 的处理是:先按行做 softmax(并加 `eps`),再列归一化,之后再额外做 `sinkhorn_iters - 1` 轮行/列交替归一 —— 整个过程都在共享内存里完成,外层在 batch×seq 维度上并行启动。",
+            "stub": "纯 Python 的 `normalize_rows` / `normalize_cols` 交替,起手是 `softmax_rows(matrix)`(对应 kernel 的 row-softmax-with-eps 那一步)。循环体与收敛行为完全一致,只是缺了逐 token 的并行启动以及 GPU 共享内存的分配。"
+          },
           "what_you_learn": [
             "Sinkhorn / RAS 的收敛性 —— 多轮 row/col 归一化即可逼近双随机。",
             "`+ eps` 为什么必须出现在分母 —— 避免除零。",
@@ -2439,6 +2605,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 2 — Overall Architecture",
         "summary": "The paper trains routed-expert weights in FP4 and activations in FP8; the dispatch below is the software seam where that mixed-precision plan actually bifurcates at runtime."
       },
+      "source_mapping": {
+        "real": "In `DeepSeek_official/model.py:108-120`, `linear()` compares against the real `torch.float4_e2m1fn_x2` / `torch.float8_e4m3fn` dtypes, calls into the TileLang kernels `act_quant`, `fp4_gemm`, `fp8_gemm` from `kernel.py`, and falls through to `F.linear(x, weight)` for the BF16 path — every branch returns a real `torch.Tensor` matrix product.",
+        "stub": "The puzzle replaces all three GEMMs (and `act_quant`) with pure-Python stubs that return tagged tuples like `('bf16', x, weight.dtype)`. The first element is just a breadcrumb so the validator can prove which branch fired without needing a GPU, real FP4/FP8 dtype support, or a TileLang installation. `dense_linear(x, weight)` stands in for `F.linear`."
+      },
       "what_you_learn": [
         "Why quantized weights require an activation quant step first.",
         "Why BF16 is the simplest path — no external `scale` tensor travels alongside the weight.",
@@ -2513,6 +2683,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "一个入口,三条精度路径。",
           "difficulty": "入门",
           "summary": "`linear()` 是 DeepSeek-V4 里所有 `nn.Linear` 的统一出口。它根据权重的 dtype 把请求路由到 FP4、FP8 或原生 BF16 的 GEMM。",
+          "source_mapping": {
+            "real": "`DeepSeek_official/model.py:108-120` 中,`linear()` 直接拿 `weight.dtype` 与真实的 `torch.float4_e2m1fn_x2` / `torch.float8_e4m3fn` 比较,调用 `kernel.py` 里的 TileLang 算子 `act_quant`、`fp4_gemm`、`fp8_gemm`,BF16 路径回落到 `F.linear(x, weight)`。每条分支返回的都是真实的 `torch.Tensor`。",
+            "stub": "练习把三个 GEMM(以及 `act_quant`)替换成纯 Python 的桩函数,统一返回带标签的元组,如 `('bf16', x, weight.dtype)`。元组首元素只是面包屑,让校验器能确认走的是哪条分支 —— 无需 GPU、无需真正支持 FP4/FP8,也不必装 TileLang。`dense_linear(x, weight)` 是 `F.linear` 的占位。"
+          },
           "what_you_learn": [
             "为什么量化权重必须先做一次激活量化。",
             "为什么 BF16 最简单 —— 不需要额外的 scale 张量跟着权重走。",
@@ -2566,6 +2740,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§3.4 FP4 Quantization-Aware Training",
         "figure": "Figure 2, inset on Mixed Precision",
         "summary": "Packed FP4 storage and per-block FP8 scales are the *physical* layout behind the mixed-precision boxes drawn in Figure 2 — the code below wires a concrete tensor shape to each ratio in the paper's quantization table."
+      },
+      "source_mapping": {
+        "real": "In `Linear.__init__` (`model.py:123-150`), every branch allocates real `nn.Parameter(torch.empty(out_features, in_features // 2 or in_features, dtype=…))` tensors and additionally registers an FP8-E8M0 scale tensor via `self.weight.scale = self.scale = nn.Parameter(...)` for FP4 / FP8 weights. The BF16 branch calls `self.register_parameter('scale', None)` instead.",
+        "stub": "`describe_linear_layout` only returns the SHAPE tuples `(weight_shape, scale_shape)` — it never allocates a tensor. The puzzle isolates the shape arithmetic (FP4 packs `in_features // 2` bytes; FP8 needs `ceildiv` per axis; BF16 has `scale_shape=None`) so you can verify the layout without instantiating real PyTorch parameters."
       },
       "what_you_learn": [
         "Why FP4 packs two values per byte and needs `in_features // 2` storage.",
@@ -2641,6 +2819,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "精度在前向开始之前就决定了张量形状。",
           "difficulty": "入门",
           "summary": "`Linear.__init__` 根据 dtype 决定权重的物理形状和 scale 张量的大小。FP4 在一个字节里打包两个值,FP8 则是每 128×128 一个 scale。",
+          "source_mapping": {
+            "real": "`Linear.__init__` (`model.py:123-150`) 每条分支都用 `nn.Parameter(torch.empty(out_features, in_features // 2 或 in_features, dtype=…))` 申请真实张量,FP4/FP8 还会通过 `self.weight.scale = self.scale = nn.Parameter(...)` 注册一个 FP8-E8M0 的 scale 张量;BF16 分支调用 `self.register_parameter('scale', None)`。",
+            "stub": "`describe_linear_layout` 只返回 `(weight_shape, scale_shape)` 两个形状元组,完全不分配张量。练习把形状算术单独剥出来 —— FP4 打包成 `in_features // 2` 字节、FP8 双轴各做一次 `ceildiv`、BF16 的 `scale_shape=None` —— 让你不用真的实例化 PyTorch 参数也能验证布局。"
+          },
           "what_you_learn": [
             "为什么 FP4 要把两个值塞进一个字节,需要 `in_features // 2` 的存储。",
             "为什么 FP8 每 128×128 一块 scale (两个轴都要 `ceildiv`)。",
@@ -2709,6 +2891,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 2",
         "summary": "Tensor-parallel sharding underpins the fused MoE kernels in §3.1: experts are split across ranks by output dim (column parallel) and later projected back by a row-parallel pass that all-reduces partials."
       },
+      "source_mapping": {
+        "real": "`ColumnParallelLinear` (`model.py:155-163`) sets `self.part_out_features = out_features // world_size` then calls `super().__init__(in_features, self.part_out_features, ...)` so each rank only allocates its slice. `RowParallelLinear` (`model.py:166-180`) analogously slices `in_features` AND adds `dist.all_reduce(y)` in its `forward()` to sum partial results across ranks.",
+        "stub": "`shard_linear` is a single function returning the post-shard `(in_features, out_features)` tuple — no `nn.Module`, no `dist`, no all-reduce. The puzzle isolates the SLICE-WHICH-AXIS choice; the all-reduce side of row-parallel is covered narratively in the surrounding interludes."
+      },
       "what_you_learn": [
         "Column-parallel: `out_features //= world_size`, each rank holds a tile of the output.",
         "Row-parallel: `in_features //= world_size`, each rank holds a tile of the input, then all-reduce.",
@@ -2770,6 +2956,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "在 forward 之前就决定切哪根轴。",
           "difficulty": "入门",
           "summary": "`ColumnParallelLinear` 切 `out_features`,`RowParallelLinear` 切 `in_features`。切分发生在构造器里 —— `forward()` 拿到的已经是本地形状。",
+          "source_mapping": {
+            "real": "`ColumnParallelLinear` (`model.py:155-163`) 在构造器里把 `self.part_out_features = out_features // world_size` 算好,再 `super().__init__(in_features, self.part_out_features, ...)`,这样每个 rank 只分配自己那块。`RowParallelLinear` (`model.py:166-180`) 类似地切 `in_features`,并在 `forward()` 里加上 `dist.all_reduce(y)` 把各 rank 的部分和加起来。",
+            "stub": "`shard_linear` 只是一个返回切分后 `(in_features, out_features)` 元组的小函数 —— 没有 `nn.Module`,没有 `dist`,也没有 all-reduce。练习把“切哪根轴”这一决策单独剥出来;行并行的 all-reduce 部分由周围的导读章节补叙。"
+          },
           "what_you_learn": [
             "列并行:`out_features //= world_size`,每个 rank 存一段输出。",
             "行并行:`in_features //= world_size`,每个 rank 存一段输入,再 all-reduce。",
@@ -2823,6 +3013,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.1 Designs Inherited from DeepSeek-V3",
         "figure": "Figure 2",
         "summary": "RMSNorm is the default norm throughout the hybrid attention / MoE stack; its FP32 recipe is load-bearing for stability when activations live in FP8."
+      },
+      "source_mapping": {
+        "real": "`RMSNorm.forward` (`model.py:191-196`) is four vectorized lines: `x = x.float(); var = x.square().mean(-1, keepdim=True); x = x * torch.rsqrt(var + self.eps); return (self.weight * x).to(dtype)`. The FP32 promotion and the dtype round-trip are essential for stability when the input is BF16 / FP8.",
+        "stub": "Pure-Python list math: `sum(value * value for value in row) / len(row)` for the mean-square, and `1.0 / ((var + eps) ** 0.5)` for the inverse RMS. No FP32 promotion, no broadcasting, no dtype handling. The formula and the placement of `eps` inside the sqrt are identical — only the tensor mechanics are stripped."
       },
       "what_you_learn": [
         "Why mean-square (not variance) is enough — RMSNorm drops the mean.",
@@ -2884,6 +3078,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "方差 → rsqrt → 逐维缩放,先升到 FP32。",
           "difficulty": "入门",
           "summary": "DeepSeek-V4 虽然 checkpoint 里 RMSNorm 权重是 BF16,但参数在内存里是 FP32。计算流程是:x 升到 FP32 → 算均方 → rsqrt → 乘上 learned scale → 再转回原 dtype。",
+          "source_mapping": {
+            "real": "`RMSNorm.forward` (`model.py:191-196`) 是四行向量化代码:`x = x.float()`、`var = x.square().mean(-1, keepdim=True)`、`x = x * torch.rsqrt(var + self.eps)`、`return (self.weight * x).to(dtype)`。升到 FP32 再算、最后转回原 dtype 是数值稳定的关键(尤其是在 BF16 / FP8 输入下)。",
+            "stub": "纯 Python 列表实现:`sum(value * value for value in row) / len(row)` 算均方,`1.0 / ((var + eps) ** 0.5)` 算逆 RMS。没有 FP32 升精、没有广播、没有 dtype 转换。公式与 `eps` 在 `sqrt` 内部的位置都和真实代码一致,只是把张量机制剥掉了。"
+          },
           "what_you_learn": [
             "为什么 mean-square 就够了 —— RMSNorm 直接丢掉均值。",
             "为什么 `rsqrt(var + eps)` 能无分支避免除零。",
@@ -2953,6 +3151,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 3 — CSA (query-key rotation)",
         "summary": "RoPE is the positional basis shared by the dense sliding-window part and the compressed KV path in CSA. Getting the frequency table right is a prerequisite for every later positional transform in the paper."
       },
+      "source_mapping": {
+        "real": "Inside `precompute_freqs_cis` (`model.py:220`), this is a single vectorized expression: `freqs = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))`. It produces a 1-D FP32 tensor of length `dim // 2`, cached by `@lru_cache(2)` because it depends only on `dim` and `base`.",
+        "stub": "A Python `for i in range(0, dim, 2)` loop emits one float per even index. Same formula, just unrolled element-by-element so the math reads top-to-bottom — no `torch.arange`, no caching, no FP32 dtype management."
+      },
       "what_you_learn": [
         "Why the exponent walks over EVEN indices — each pair `(2i, 2i+1)` shares one frequency.",
         "Why `base = 10000` is the classical choice and how it controls frequency decay."
@@ -2998,6 +3200,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "YaRN 拉伸之前,先得有一张标准频率表。",
           "difficulty": "核心",
           "summary": "RoPE 的基石是一张几何递减的频率表:每个索引对 `i`,频率 θ_i = base^(-2i/dim)。这就是原版 RoPE 的公式。",
+          "source_mapping": {
+            "real": "`precompute_freqs_cis` 里 (`model.py:220`) 这是一行向量化表达式:`freqs = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))`。得到长度为 `dim // 2` 的 1-D FP32 张量,外层 `@lru_cache(2)` 因为它只依赖 `dim` 和 `base`。",
+            "stub": "用 `for i in range(0, dim, 2)` 把每个偶数索引的频率单独算出来。公式完全一致,只是元素一对一展开,便于自上而下读懂数学 —— 没有 `torch.arange`、没有 lru_cache、没有 FP32 dtype 管理。"
+          },
           "what_you_learn": [
             "为什么频率对维度呈几何递减 —— 低维对应低频(长周期),高维对应高频(短周期)。",
             "`torch.arange(0, dim, 2)` 为什么跳步 —— 每两个维度共用一个旋转角。",
@@ -3037,6 +3243,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.3 Other Details",
         "figure": "Figure 3",
         "summary": "DeepSeek-V4 uses YaRN to push the trained RoPE table out to 1M-token context without retraining. The linear-ramp smooth mask below is the mechanism that selectively protects high-frequency bands."
+      },
+      "source_mapping": {
+        "real": "After `smooth = 1 - linear_ramp_factor(low, high, dim // 2)`, `precompute_freqs_cis` (`model.py:221-229`) does the convex combination `freqs = freqs / factor * (1 - smooth) + freqs * smooth` (broadcasted over the frequency band axis), then `freqs = torch.outer(t, freqs)` to build the full angle grid, and finally `torch.polar(torch.ones_like(freqs), freqs)` converts to the complex-exponential `freqs_cis` table consumed by `apply_rotary_emb`.",
+        "stub": "Two explicit Python loops — one per-band convex combination, one outer-product row. The polar / complex-exponential conversion is deferred to S07, which uses Python's built-in `complex` instead of `torch.view_as_complex`."
       },
       "what_you_learn": [
         "Why the interpolation is a convex combination `freq/factor·(1−s) + freq·s`.",
@@ -3097,6 +3307,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "低频拉伸 `1/factor`,高频保持原样,中间用线性斜坡。",
           "difficulty": "核心",
           "summary": "要扩展上下文长度时,YaRN 按频率打分:低频维度整体除以 `factor`,高频维度保持,中间区间用 `linear_ramp_factor` 做线性过渡。最后用 `outer(t, freqs)` 乘上时间步,送去 `polar`。",
+          "source_mapping": {
+            "real": "在算出 `smooth = 1 - linear_ramp_factor(low, high, dim // 2)` 之后,`precompute_freqs_cis` (`model.py:221-229`) 用张量广播完成凸组合 `freqs = freqs / factor * (1 - smooth) + freqs * smooth`,然后 `freqs = torch.outer(t, freqs)` 生成完整角度网格,最后 `torch.polar(torch.ones_like(freqs), freqs)` 把它转成复指数 `freqs_cis`,供 `apply_rotary_emb` 使用。",
+            "stub": "两个显式 Python 循环:一个做逐频段凸组合,一个做时间 × 频率外积行。极坐标 / 复指数转换被推迟到 S07,而 S07 用的是 Python 内置 `complex`,代替 `torch.view_as_complex`。"
+          },
           "what_you_learn": [
             "为什么只压缩低频 —— 模型已经在原长度上学会了高频,不要扰动。",
             "`smooth` 为什么要 clip 到 `[0, 1]` —— 边界外的频率维度要么完全拉伸、要么完全保留。",
@@ -3150,6 +3364,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.1 Compressed Sparse Attention",
         "figure": "Figure 3",
         "summary": "DSA-style attention rotates both Q and K in CSA, then *unrotates* the attention output via the inverse path so that the residual stream stays un-rotated — this conjugate trick replaces a second matrix parameter."
+      },
+      "source_mapping": {
+        "real": "`apply_rotary_emb` (`model.py:232-244`) does `x = torch.view_as_complex(x.float().unflatten(-1, (-1, 2)))`, optionally `freqs_cis = freqs_cis.conj()` for inverse, then `x = torch.view_as_real(x * freqs_cis).flatten(-2)` and writes back in-place via `y.copy_(x)`. FP32 promotion is mandatory — BF16 lacks the precision for the complex multiply at long-context positions.",
+        "stub": "Uses Python's built-in `complex(x, y)` to pack adjacent floats into complex numbers — a stand-in for `view_as_complex`. The conjugate-on-inverse trick is identical; the only differences are no in-place writeback, no FP32 promotion, and no broadcast-shape juggling for 3-D vs 4-D inputs."
       },
       "what_you_learn": [
         "Why inverse rotation is just the complex conjugate — no separate coefficients.",
@@ -3210,6 +3428,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "相邻两维看作复数,乘上 freqs_cis。",
           "difficulty": "核心",
           "summary": "`apply_rotary_emb` 把 `x` 的最后两维看成复数对,乘上 `freqs_cis`,再拍回实数。`inverse=True` 时取共轭 —— 这是把注意力输出从 RoPE 空间反旋回模型空间的方式。",
+          "source_mapping": {
+            "real": "`apply_rotary_emb` (`model.py:232-244`) 先 `x = torch.view_as_complex(x.float().unflatten(-1, (-1, 2)))`,如有需要 `freqs_cis = freqs_cis.conj()` 取共轭,再 `x = torch.view_as_real(x * freqs_cis).flatten(-2)`,最后通过 `y.copy_(x)` 原地写回。FP32 升精是必须的 —— BF16 在长上下文下不够算复数乘。",
+            "stub": "用 Python 内置 `complex(x, y)` 把相邻两个 float 拼成复数,作为 `view_as_complex` 的占位。逆旋转取共轭的技巧完全一致;唯一不同是没有原地写回 (`y.copy_(x)`)、没有 FP32 升精,也不必为 3-D / 4-D 输入做广播形状调整。"
+          },
           "what_you_learn": [
             "相邻两维如何打包成复数 —— `view_as_complex` + `unflatten`。",
             "为什么 `inverse=True` 只需对 `freqs_cis` 取共轭。",
@@ -3339,6 +3561,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 3",
         "summary": "This is the central equation behind CSA: per-window softmax over `Z`, then a Hadamard-weighted sum of `C` — reducing n tokens into n/m compressed entries."
       },
+      "source_mapping": {
+        "real": "`Compressor.forward` (`model.py:316-342`) projects `kv = self.wkv(x)` and `score = self.wgate(x)`, calls `kv = kv.unflatten(1, (-1, ratio))` to slice the sequence into windows, adds the learned positional embedding `self.ape`, optionally calls `self.overlap_transform` for `compress_ratio == 4`, and finally fuses the per-window pool as `kv = (kv * score.softmax(dim=2)).sum(dim=2)` — one softmax-then-weighted-sum tensor expression.",
+        "stub": "An explicit Python `for start in range(0, len(kv_rows), ratio)` loop slices the sequence, then `weighted_sum(window, softmax(scores))` does the per-window pool. The puzzle ignores the `wkv` / `wgate` projections, the `self.ape` embedding, the overlap transform, and the decode-state buffers (those are covered in interludes i09 / i10) so you focus on the softmax-pool recipe itself."
+      },
       "what_you_learn": [
         "Why the softmax goes along the WINDOW axis — it redistributes weight across the m entries, not across features.",
         "Why an incomplete trailing window must be skipped (saved into `kv_state` instead)."
@@ -3397,6 +3623,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "一整段序列一次性压缩,池化出每个窗口的代表。",
           "difficulty": "核心",
           "summary": "Prefill 阶段一次吃掉整段输入,按 `compress_ratio` 做分块池化:先检查剩下的 token 是否至少能凑出一个窗口,再在每个窗口上做 `softmax(score) * kv` 的加权和。",
+          "source_mapping": {
+            "real": "`Compressor.forward` (`model.py:316-342`) 先做投影 `kv = self.wkv(x)`、`score = self.wgate(x)`,再 `kv = kv.unflatten(1, (-1, ratio))` 把序列切成窗口,加上可学习位置编码 `self.ape`,在 `compress_ratio == 4` 时调用 `self.overlap_transform` 走重叠窗口模式,最后用一个张量表达式融合 softmax + 加权求和:`kv = (kv * score.softmax(dim=2)).sum(dim=2)`。",
+            "stub": "纯 Python `for start in range(0, len(kv_rows), ratio)` 把序列切片,再用 `weighted_sum(window, softmax(scores))` 做窗口内池化。练习略去了 `wkv` / `wgate` 投影、`self.ape` 位置嵌入、重叠窗口变换以及 decode 状态缓冲(那些放在导读 i09 / i10),让你专注于 softmax 池化的核心配方。"
+          },
           "what_you_learn": [
             "为什么要显式判断 `len(kv_rows) >= ratio` —— 避免半个窗口被塌缩成无意义的均值。",
             "块内 softmax 为什么要配着 `weighted_sum` —— 这是最小版本的 attention。",
@@ -3496,6 +3726,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 3",
         "summary": "Equations 15–16 in the paper. The ReLU is critical — it zeroes out negative alignments so the top-k survives noisy queries."
       },
+      "source_mapping": {
+        "real": "Inside `Indexer.forward` (`model.py:418-427`), the score is `index_score = torch.einsum('bshd,btd->bsht', q, self.kv_cache[:bsz, :end_pos // ratio])` — a batched per-head Q·K — followed by `(index_score.relu_() * weights.unsqueeze(-1)).sum(dim=2)`. The result is all-reduced across TP ranks, masked, and finally fed to `topk(...)`.",
+        "stub": "An explicit triple-loop (head, then dot-product, then accumulate) computes the same scalar score for one (q, k) pair. No batching, no `einsum`, no `topk` — the puzzle isolates the per-head ReLU + head-weighted-sum recipe; the surrounding top-k selection is structurally trivial once the score is correct."
+      },
       "what_you_learn": [
         "Why ReLU clips negatives — negative alignments shouldn't pull a key into the top-k.",
         "Why the head-weight is multiplied AFTER the ReLU."
@@ -3554,6 +3788,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "对每个 (q, k) 计算 ReLU(q·k),按 head 加权求和。",
           "difficulty": "核心",
           "summary": "Indexer 用每个 head 的 q 与压缩 KV 做点积,经 ReLU 抑制负得分,然后按 `head_weights[h]` 对 head 做加权求和,得到每个 query 对每个压缩位置的得分。",
+          "source_mapping": {
+            "real": "`Indexer.forward` (`model.py:418-427`) 用 `index_score = torch.einsum('bshd,btd->bsht', q, self.kv_cache[:bsz, :end_pos // ratio])` 做批量化的逐 head Q·K,接着 `(index_score.relu_() * weights.unsqueeze(-1)).sum(dim=2)` 沿 head 维加权求和。结果会跨 TP rank 做 all-reduce、应用因果掩码,最后送进 `topk(...)`。",
+            "stub": "三层显式 Python 循环(head → 点积 → 累加),为单个 (q, k) 算出同样的标量得分。没有 batch、没有 `einsum`、也没有 `topk` —— 练习只把“逐 head ReLU + head 加权求和”这个核心配方剥出来;一旦得分算对,top-k 选择部分就是自然的事。"
+          },
           "what_you_learn": [
             "为什么用 ReLU 而不是 softmax —— 得分本身就用于排序,ReLU 足以剔除负贡献。",
             "head 加权让不同 head 可以学到不同的重要性。",
@@ -3653,6 +3891,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 3",
         "summary": "This is the data-plane version of eq. (17): the union of sliding-window KV and top-k compressed KV, which the sparse attention kernel reads in lock-step."
       },
+      "source_mapping": {
+        "real": "In `Attention.forward` (`model.py:507-516`), this is `topk_idxs = get_window_topk_idxs(win, bsz, seqlen, start_pos)` followed by `topk_idxs = torch.cat([topk_idxs, compress_topk_idxs], dim=-1)` and `topk_idxs = topk_idxs.int()`. Crucially the `-1` sentinel is NOT filtered here — it is read by `sparse_attn_kernel` (`kernel.py:323-327`) which masks `idxs[i] != -1` to zero out those gather lanes.",
+        "stub": "`build_topk_plan` does the concat in pure Python and additionally filters `-1` out of the result. That trailing filter is purely a *test affordance* so the validator can compare a clean list — the real production path keeps the sentinels in place all the way to the kernel."
+      },
       "what_you_learn": [
         "Why `-1` is kept as an explicit sentinel rather than excised early — the kernel uses it to zero-out contributions.",
         "Why the concat order matters for block-aligned cache reads."
@@ -3698,6 +3940,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "先取窗口索引,再拼上压缩索引(若有)。",
           "difficulty": "核心",
           "summary": "稀疏注意力需要一张统一的 topk 索引表。本节把 *窗口索引*(最近的真实位置)和 *压缩索引*(Indexer 或静态公式)沿最后一维拼接起来。只有压缩部分非空时才需要拼;否则原样返回窗口索引。",
+          "source_mapping": {
+            "real": "在 `Attention.forward` (`model.py:507-516`) 中,流程是 `topk_idxs = get_window_topk_idxs(win, bsz, seqlen, start_pos)`,再 `topk_idxs = torch.cat([topk_idxs, compress_topk_idxs], dim=-1)`,最后 `topk_idxs = topk_idxs.int()`。关键点:`-1` 哨兵在这里 *不* 被过滤 —— 它会被 `sparse_attn_kernel` (`kernel.py:323-327`) 通过 `idxs[i] != -1` 掩码,把那条 gather 通道清零。",
+            "stub": "`build_topk_plan` 在纯 Python 里做拼接,并额外把 `-1` 过滤掉。这个尾巴上的过滤纯粹是 *测试便利* —— 校验器需要一个干净的列表;真正的生产路径会一直保留哨兵,把它送到 kernel。"
+          },
           "what_you_learn": [
             "`compress_topk` 什么时候为空 —— `compress_ratio == 0` 的纯滑动窗口层。",
             "为什么索引用 `-1` 表示“跳过” —— kernel 会按此掩码。",
@@ -3734,6 +3980,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.3.3 Other Details (Sliding Window)",
         "figure": "Figure 3",
         "summary": "CSA augments sparse top-k with a small sliding window to preserve fine-grained local structure. This code is where that window survives across autoregressive steps."
+      },
+      "source_mapping": {
+        "real": "Inside `Attention.forward` (`model.py:517-533`), short prefill is `self.kv_cache[:bsz, :seqlen] = kv`; long prefill splits and rotates so the ring already starts at the correct position: `cutoff = seqlen % win`, then `self.kv_cache[:bsz, cutoff:win], self.kv_cache[:bsz, :cutoff] = kv[:, -win:].split([win - cutoff, cutoff], dim=1)`. Decode is a single in-place tensor index write at slot `start_pos % win`.",
+        "stub": "`write_kv_cache` operates on a Python `list` instead of a `torch.Tensor` and skips the prefill split/rotate trick — it just keeps the last `window_size` elements unrotated. The decode branch's `start_pos % window_size` index is identical to the real code."
       },
       "what_you_learn": [
         "Why the prefill path falls back to `values[-window_size:]` when the input is longer than the window.",
@@ -3793,6 +4043,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "Prefill 保留尾巴,decode 在 `(start_pos mod W)` 覆写。",
           "difficulty": "核心",
           "summary": "只有最近 `window_size` 个 token 会被保留。Prefill 时把序列末尾原样写入;decode 时用 ring-buffer 覆盖最旧的位置 —— 任何时刻都只保存最近一个窗口。",
+          "source_mapping": {
+            "real": "在 `Attention.forward` (`model.py:517-533`) 里,短 prefill 是 `self.kv_cache[:bsz, :seqlen] = kv`;长 prefill 会切片再旋转,使环形缓冲一开始就在正确位置上:`cutoff = seqlen % win`,然后 `self.kv_cache[:bsz, cutoff:win], self.kv_cache[:bsz, :cutoff] = kv[:, -win:].split([win - cutoff, cutoff], dim=1)`。Decode 是单次原地索引写,落在 `start_pos % win` 槽位。",
+            "stub": "`write_kv_cache` 操作的是 Python `list` 而非 `torch.Tensor`,也跳过了长 prefill 的切片旋转 —— 只保留最后 `window_size` 个元素。Decode 分支的 `start_pos % window_size` 索引和真实代码完全一致。"
+          },
           "what_you_learn": [
             "为什么 prefill 的尾巴是 `values[-window_size:]`。",
             "`start_pos % window_size` 如何形成 ring-buffer 行为。",
@@ -3892,6 +4146,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 2",
         "summary": "Paper change from V3: the affinity function is `sqrt(softplus(·))`, and a bias-assisted top-k keeps load balanced without distorting the routing weights."
       },
+      "source_mapping": {
+        "real": "`Gate.forward` (`model.py:564-584`) does `scores = linear(x.float(), self.weight.float())`, applies the chosen activation (default `F.softplus(scores).sqrt()`), saves `original_scores = scores`, and only THEN adds `self.bias` for selection. Indices come from `scores.topk(self.topk, dim=-1)[1]`, weights come from `original_scores.gather(1, indices)`, and non-softmax branches additionally re-normalize via `weights /= weights.sum(...)`.",
+        "stub": "The puzzle replaces `sqrt(softplus(...))` with plain `softmax` for simplicity, but keeps the critical separation between *shifted* scores (used to pick the top-k) and *original* scores (used for the routing weight). Python helpers `topk_indices` and `gather` mirror their PyTorch counterparts one-to-one."
+      },
       "what_you_learn": [
         "Why the bias term only influences SELECTION, not the final routing weight.",
         "Why the softmax path is the only branch that already sums to 1 and doesn't need renormalization."
@@ -3950,6 +4208,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "偏置只影响专家选择,不影响最终路由权重。",
           "difficulty": "核心",
           "summary": "Gate 的关键技巧:`bias` 加到打分上只用于 topk 专家选择,但最终路由权重要从 *原始* (不带偏置的) scores 里 gather。这是 DeepSeek-V3 引入的 top-k 偏置 trick。",
+          "source_mapping": {
+            "real": "`Gate.forward` (`model.py:564-584`) 先 `scores = linear(x.float(), self.weight.float())`,再走选定的激活(默认是 `F.softplus(scores).sqrt()`),保存 `original_scores = scores`,然后只为选 top-k 加上 `self.bias`。索引来自 `scores.topk(self.topk, dim=-1)[1]`,权重来自 `original_scores.gather(1, indices)`。非 softmax 分支再做一次 `weights /= weights.sum(...)` 重归一。",
+            "stub": "练习把 `sqrt(softplus(...))` 简化成普通 `softmax`,但保留了 *最关键* 的设计:挑 top-k 用的是 *加偏置后* 的得分,而最终路由权重要从 *原始* 得分里 gather。Python 辅助函数 `topk_indices` / `gather` 与 PyTorch 原生算子一一对应。"
+          },
           "what_you_learn": [
             "为什么 bias 不能影响 routing 权重 —— 那会引入不公平的幅值偏差。",
             "`gather(1, indices)` 如何按索引从原始分数里拿值。",
@@ -4017,6 +4279,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "—",
         "summary": "Standard SwiGLU FFN reused from V3; DeepSeek-V4 additionally supports FP4 routed-expert weights via the Linear dispatch you built in s01."
       },
+      "source_mapping": {
+        "real": "`Expert.forward` (`model.py:596-606`) computes `gate = self.w1(x).float(); up = self.w3(x).float()`, optionally clamps `up` and `gate` to `self.swiglu_limit`, then `x = F.silu(gate) * up`, applies `weights * x` if MoE-routed, and finally projects back via `self.w2(x.to(dtype))`. All three linears go through your `linear()` dispatcher from S01.",
+        "stub": "The puzzle skips both the `w1` / `w2` / `w3` projections and the optional clamping — it focuses on the `silu(gate) * up` core multiplication, elementwise in pure Python. The optional `route_weight` knob is preserved because that one line is reused inside the MoE loop in S13."
+      },
       "what_you_learn": [
         "Why SwiGLU multiplies SiLU(gate) elementwise with a separate `up` projection.",
         "Why optional clipping on `gate` / `up` stabilises FP4 training."
@@ -4062,6 +4328,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "`SiLU(gate) * up`,再过 w2。",
           "difficulty": "核心",
           "summary": "SwiGLU 的核心是把 FFN 的激活拆成两路:`w1(x)` 作为门 gate,`w3(x)` 作为 up;最终激活是 `SiLU(gate) * up`,再过一次 `w2` 投回来。",
+          "source_mapping": {
+            "real": "`Expert.forward` (`model.py:596-606`) 计算 `gate = self.w1(x).float()`、`up = self.w3(x).float()`,在 `swiglu_limit > 0` 时对 `up` 和 `gate` 做截断,然后 `x = F.silu(gate) * up`,如果是 MoE 路由 再乘 `weights * x`,最后通过 `self.w2(x.to(dtype))` 投回。三个 linear 全部走 S01 写好的 `linear()` 分发器。",
+            "stub": "练习既跳过了 `w1` / `w2` / `w3` 投影,也跳过了可选的截断 —— 焦点放在 `silu(gate) * up` 这条逐元素核心运算,用纯 Python 实现。可选的 `route_weight` 旋钮保留了下来,因为这一行会在 S13 的 MoE 循环里复用。"
+          },
           "what_you_learn": [
             "SwiGLU 相比 ReLU/GELU 的优势 —— 可学习的门控。",
             "`SiLU(x) = x * sigmoid(x)` 的逐元素实现。",
@@ -4129,6 +4399,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 2",
         "summary": "Fine-grained experts + shared expert is the DeepSeekMoE recipe; the sparse execution below avoids launching inactive experts entirely."
       },
+      "source_mapping": {
+        "real": "`MoE.forward` (`model.py:630-645`) does `counts = torch.bincount(indices.flatten(), minlength=...).tolist()` to skip empty experts, then for each active expert `i`: `idx, top = torch.where(indices == i); y[idx] += expert(x[idx], weights[idx, top, None])`. After the routed loop it all-reduces `y` across TP ranks and unconditionally adds `y += self.shared_experts(x)`.",
+        "stub": "Pure-Python equivalents: `count_indices` mirrors `bincount`, the comprehension `[(t, k) for t, row in enumerate(routed) ...]` mirrors `torch.where`, and outputs are scalars instead of tensor rows. The bincount-based skip and the shared-expert add are preserved exactly."
+      },
       "what_you_learn": [
         "Why `bincount` is a cheap way to avoid launching inactive experts.",
         "Why `(token_idx, top_slot)` must BOTH be preserved — `top_slot` is the index into the routing-weight tensor."
@@ -4187,6 +4461,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "按专家分桶,每个 token 按权重累加。",
           "difficulty": "核心",
           "summary": "对每个专家 `i`,找出所有路由到它的 (token, top_slot) 对,送入专家网络,再按 `weights[token][top_slot]` 累加到输出。",
+          "source_mapping": {
+            "real": "`MoE.forward` (`model.py:630-645`) 用 `counts = torch.bincount(indices.flatten(), minlength=...).tolist()` 把不命中的专家直接跳过;对每个活跃专家 `i`:`idx, top = torch.where(indices == i); y[idx] += expert(x[idx], weights[idx, top, None])`。路由循环之后 `y` 跨 TP rank 做 all-reduce,然后无条件追加 `y += self.shared_experts(x)`。",
+            "stub": "纯 Python 等价物:`count_indices` 对应 `bincount`,`[(t, k) for t, row in enumerate(routed) ...]` 对应 `torch.where`,输出是标量而非张量行。基于 bincount 的跳过、共享专家无条件累加都原样保留。"
+          },
           "what_you_learn": [
             "`expert_positions` 如何枚举 (token, top_slot) 对。",
             "为什么权重要取 `weights[t][k]` —— top_slot 位置而不是专家 id。",
@@ -4256,6 +4534,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 2 (Residual/Pre-Block/Post-Block Mixing)",
         "summary": "eq. (3) writes the input mapping Â_l · X_l; the code below is the fused RMS-norm + mixing step that materialises it at each block boundary."
       },
+      "source_mapping": {
+        "real": "`Block.hc_pre` (`model.py:674-682`) flattens `[b, s, hc, d] → [b, s, hc*d]`, computes `rsqrt = torch.rsqrt(x.square().mean(-1, keepdim=True) + eps)`, projects `mixes = F.linear(x, hc_fn) * rsqrt`, then calls the TileLang kernel `hc_split_sinkhorn(mixes, hc_scale, hc_base, ...)` which returns `(pre, post, comb)`. Finally `y = (pre.unsqueeze(-1) * x.view(shape)).sum(dim=2)` collapses the `hc` lane axis with a learned weighted sum.",
+        "stub": "The puzzle skips the `hc_fn` projection AND the TileLang Sinkhorn kernel entirely — it pre-supplies the lane logits as an input and only asks you to wire the rsqrt-scale → softmax-like-normalize → weighted-collapse pipeline. The Sinkhorn kernel itself is the subject of S20."
+      },
       "what_you_learn": [
         "Why mixing weights come from the CURRENT token, not a fixed residual coefficient.",
         "Why the RMS scale has to use the FLATTENED residual — not per-lane statistics."
@@ -4315,6 +4597,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "用逆 RMS 缩放 logit,按 lane 权重收拢。",
           "difficulty": "进阶",
           "summary": "HC 预混合先用 `rsqrt` 归一化每行的幅值,得到 logits;再按每个 lane 的权重,把 `hc_mult` 份拷贝塌缩为一份送入子层。",
+          "source_mapping": {
+            "real": "`Block.hc_pre` (`model.py:674-682`) 把 `[b, s, hc, d]` flatten 成 `[b, s, hc*d]`,算 `rsqrt = torch.rsqrt(x.square().mean(-1, keepdim=True) + eps)`,投影 `mixes = F.linear(x, hc_fn) * rsqrt`,再调 TileLang kernel `hc_split_sinkhorn(mixes, hc_scale, hc_base, ...)` 拿到 `(pre, post, comb)`;最后 `y = (pre.unsqueeze(-1) * x.view(shape)).sum(dim=2)` 沿 hc lane 做加权塌缩。",
+            "stub": "练习把 `hc_fn` 投影 *和* TileLang Sinkhorn kernel 都跳过 —— 直接把 lane logits 作为输入传进来,只让你把 rsqrt 缩放 → 类 softmax 归一化 → 加权塌缩这条流水线接通。Sinkhorn kernel 本身留到 S20。"
+          },
           "what_you_learn": [
             "`rsqrt(mean_square + eps)` 为什么作为逐行 scale。",
             "`weights[lane]` 如何把多份 lane 加权合并。",
@@ -4367,6 +4653,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.2 Manifold-Constrained Hyper-Connections — eq. (5), (7)",
         "figure": "Figure 2",
         "summary": "eq. (5) + eq. (7) spell out the output mapping C_l and the residual mixing B_l; together they give us this closed-form post-mix."
+      },
+      "source_mapping": {
+        "real": "`Block.hc_post` (`model.py:684-687`) is a single tensor expression: `y = post.unsqueeze(-1) * x.unsqueeze(-2) + torch.sum(comb.unsqueeze(-1) * residual.unsqueeze(-2), dim=2)`. Two broadcast multiplies and a reduction over source lanes — closed form, no loops.",
+        "stub": "Two nested Python loops over `(lane, col)` make the broadcast pattern explicit. Each cell is `post[lane] * x[col] + sum(comb[lane][src] * residual[src][col] for src in ...)` — exactly the closed form, just unrolled so the indexing is immediately legible."
       },
       "what_you_learn": [
         "Why the new output is BROADCAST into every lane via `post`.",
@@ -4426,6 +4716,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "fresh 分支 + 残差重组,恢复 hc_mult 份。",
           "difficulty": "进阶",
           "summary": "HC 后混合把单份输出(`x`)乘到每个 lane(fresh 分支),再把残差的各 lane 按 `comb[lane][src]` 加权求和(residual_mix),两部分相加得到新的 hc_mult 份。",
+          "source_mapping": {
+            "real": "`Block.hc_post` (`model.py:684-687`) 是一行张量表达式:`y = post.unsqueeze(-1) * x.unsqueeze(-2) + torch.sum(comb.unsqueeze(-1) * residual.unsqueeze(-2), dim=2)`。两次广播乘 + 一次沿源 lane 求和 —— 闭式无循环。",
+            "stub": "用两层 Python 嵌套循环 (`lane`, `col`) 把上面的广播展开。每个格子是 `post[lane] * x[col] + sum(comb[lane][src] * residual[src][col] for src in ...)` —— 完全是闭式表达式,只是把索引一一展开,可读性更强。"
+          },
           "what_you_learn": [
             "fresh 分支 `post[lane] * x[col]` 的广播含义。",
             "`comb` 是 hc×hc 的方阵,把 src lane 映射到 dst lane。",
@@ -4646,6 +4940,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 2 (mixed-precision path)",
         "summary": "This is the FP8 activation quant kernel referenced by §3.2; `scale_fmt='ue8m0'` additionally rounds the scale to a power-of-two, matching MXFP8 semantics."
       },
+      "source_mapping": {
+        "real": "`act_quant_kernel` (`kernel.py:40-102`) is a TileLang `@tilelang.jit` GPU kernel. It splits the input into `[blk_m=32, group_size=128]` tiles in shared memory, calls `T.reduce_absmax` along the group axis, applies the floor `T.max(amax, 1e-4)`, optionally rounds to a power-of-two scale via `fast_round_scale` (the MXFP path), then either clamps + casts to FP8 or runs an in-place QAT round-trip back to BF16 (`inplace=True`).",
+        "stub": "A pure-Python `quantize_row` walks the row block-by-block in a `for` loop. No GPU, no shared memory, no `T.reduce_absmax`, no power-of-two rounding (mentioned only in pitfalls). The puzzle nails down the divide-then-clamp recipe and the `max(amax, 1e-4)` floor — those carry over verbatim to the kernel."
+      },
       "what_you_learn": [
         "Why the floor `max(absmax, 1e-4)` keeps extremely cold blocks from producing zero scales.",
         "Why the clamp happens AFTER the divide — the kernel never stores FP8 values outside [-448, 448]."
@@ -4704,6 +5002,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "absmax → scale → divide + clamp。",
           "difficulty": "核心",
           "summary": "kernel 在每个 `[blk_m, group_size]` 块里 `reduce_absmax`,然后用 `max(amax, 1e-4) / FP8_MAX` 得到 scale。`inplace=True` 时先除 scale → cast FP8 → 乘 scale(QAT 模拟);否则直接 clamp 到 FP8 范围后输出。",
+          "source_mapping": {
+            "real": "`act_quant_kernel` (`kernel.py:40-102`) 是一个 `@tilelang.jit` 修饰的 GPU kernel。它把输入切成 `[blk_m=32, group_size=128]` 的 tile 加载到共享内存,沿 group 轴做 `T.reduce_absmax`,施加 `T.max(amax, 1e-4)` 下限;按需通过 `fast_round_scale` 把 scale 圆到 2 的幂(MXFP 路径);最后要么 clamp + cast 到 FP8,要么走 `inplace=True` 的 QAT 往返(回到 BF16)。",
+            "stub": "纯 Python `quantize_row` 用 `for` 循环逐块走过一行。没有 GPU、没有共享内存、没有 `T.reduce_absmax`、也没有 2 的幂取整(只在 pitfalls 里提了一下)。练习钉死了 divide-then-clamp 配方与 `max(amax, 1e-4)` 下限 —— 这两点直接照搬到 kernel 里也成立。"
+          },
           "what_you_learn": [
             "为什么需要 `max(amax, 1e-4)` —— 防止全零块产生除零。",
             "`round_scale` 和 `scale_fmt` 的关系 —— MXFP 需要 2 的幂次 scale。",
@@ -4834,6 +5136,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "figure": "Figure 3",
         "summary": "Sparse attention with top-k KV entries; the online softmax below is the kernel recipe inside `sparse_attn_kernel`."
       },
+      "source_mapping": {
+        "real": "`sparse_attn_kernel` (`kernel.py:276-352`) is a FlashAttention-style TileLang kernel. It pipelines 64-token blocks of top-k indices, gathers KV via `T.if_then_else(idxs[i] != -1, kv[by, idxs[i], j], 0)`, runs `T.gemm(q_shared, kv_shared, acc_s, transpose_B=True)` for the scores, maintains per-head `scores_max` / `sum_exp`, rescales `acc_o` by `T.exp(scores_max_prev - scores_max)` each step, and folds in `T.exp(attn_sink[i] - scores_max[i])` only at the very end.",
+        "stub": "A scalar Python implementation operating on one query and one head. No tiling, no shared memory, no `T.gemm`. The running-max / running-sum update equations and the rescale `exp(prev_max - running_max)` are line-for-line identical to the kernel — only the parallelism is missing."
+      },
       "what_you_learn": [
         "Why the max update must rescale BOTH the numerator AND the denominator.",
         "Why `attn_sink` only enters the denominator once — it doesn't accumulate values."
@@ -4919,6 +5225,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "running max + running sum,再加 attn_sink。",
           "difficulty": "进阶",
           "summary": "稀疏注意力逐块更新 running max 和 running sum:先 `exp(score - running_max)` 累加分子/分母,然后把 `attn_sink` 作为一个虚拟的 logit 加到最终分母上。",
+          "source_mapping": {
+            "real": "`sparse_attn_kernel` (`kernel.py:276-352`) 是 FlashAttention 风格的 TileLang kernel。它按 64-token 一块流水线处理 top-k 索引,gather 时用 `T.if_then_else(idxs[i] != -1, kv[by, idxs[i], j], 0)` 处理哨兵,走 `T.gemm(q_shared, kv_shared, acc_s, transpose_B=True)` 算分数,维护逐 head 的 `scores_max` / `sum_exp`,每步用 `T.exp(scores_max_prev - scores_max)` 重缩放 `acc_o`,最后才把 `T.exp(attn_sink[i] - scores_max[i])` 折进分母。",
+            "stub": "标量 Python 实现:单个 query、单个 head。没有分块、没有共享内存、没有 `T.gemm`。running-max / running-sum 的更新方程,以及 `exp(prev_max - running_max)` 的 rescale,和 kernel 里的写法逐行对应 —— 只是缺了并行化部分。"
+          },
           "what_you_learn": [
             "在线 softmax 如何用增量 max 保持数值稳定。",
             "为什么分母要再加一个 sink 项 —— 给模型一个“不聚焦”的选项。",
@@ -4989,6 +5299,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§2.2 mHC — eq. (8)",
         "figure": "Figure 2 (Residual Mixing)",
         "summary": "eq. (8) is the Sinkhorn-Knopp iteration; the manifold constraint caps the spectral norm of `B_l` at 1 and stabilises the deep HC stack."
+      },
+      "source_mapping": {
+        "real": "`hc_split_sinkhorn_kernel` (`kernel.py:371-438`) is a TileLang kernel that computes `pre`, `post`, and `comb` per token from the `mixes` projection. For `comb`, it row-softmaxes (with `+ eps`), normalises columns, then alternates row/col normalisation for `sinkhorn_iters - 1` more rounds — all in shared memory inside one TileLang block per token, parallel across the batch×seq axis.",
+        "stub": "Pure-Python alternating `normalize_rows` / `normalize_cols`, starting from a `softmax_rows(matrix)` call (mirroring the kernel's row-softmax-with-eps step). The loop body and convergence behaviour are identical; only the per-token parallelism and the GPU shared-memory allocation are missing."
       },
       "what_you_learn": [
         "Why a row-normalised matrix isn't doubly stochastic — you need columns too.",
@@ -5061,6 +5375,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "交替归一化行与列,收敛到双随机矩阵。",
           "difficulty": "进阶",
           "summary": "Sinkhorn 迭代把任意非负矩阵逼近到双随机:每轮先归一化行,再归一化列。epsilon 防止零行/零列导致除零。",
+          "source_mapping": {
+            "real": "`hc_split_sinkhorn_kernel` (`kernel.py:371-438`) 是个 TileLang kernel,逐 token 算出 `pre`、`post`、`comb`。对 `comb` 的处理是:先按行做 softmax(并加 `eps`),再列归一化,之后再额外做 `sinkhorn_iters - 1` 轮行/列交替归一 —— 整个过程都在共享内存里完成,外层在 batch×seq 维度上并行启动。",
+            "stub": "纯 Python 的 `normalize_rows` / `normalize_cols` 交替,起手是 `softmax_rows(matrix)`(对应 kernel 的 row-softmax-with-eps 那一步)。循环体与收敛行为完全一致,只是缺了逐 token 的并行启动以及 GPU 共享内存的分配。"
+          },
           "what_you_learn": [
             "Sinkhorn / RAS 的收敛性 —— 多轮 row/col 归一化即可逼近双随机。",
             "`+ eps` 为什么必须出现在分母 —— 避免除零。",
@@ -5115,6 +5433,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
         "section": "§3.4 FP4 Quantization-Aware Training",
         "figure": "§3.4 Table (scale shapes)",
         "summary": "The asymmetric scale grids (act 1×128 vs weight 1×32) are a direct consequence of how FP4 QAT stabilises routed-expert weights in DeepSeek-V4."
+      },
+      "source_mapping": {
+        "real": "`fp4_gemm_kernel` (`kernel.py:441-515`) is a TileLang kernel performing FP8(act) × FP4(weight) GEMM. It loads FP4 sub-blocks of size `[block_N, 32]`, casts FP4 → FP32 → FP8, runs FP8×FP8 `T.gemm`, and applies the act scale (one per 128-K group) AND the weight scale (one per 32-K group) to a second accumulator. With `n_sub = act_group_size // block_K = 4`, every 4 weight sub-blocks share one act scale.",
+        "stub": "A pure-Python triple-loop reproduces the K-axis arithmetic ONLY: `act_group = kk // (block_k * n_sub)` and `weight_group = kk // block_k`. There is no FP4 packing, no FP4→FP8 cast, no real GEMM — the puzzle exists to verify you derive the correct *index math* the kernel needs."
       },
       "what_you_learn": [
         "Why four 32-wide weight sub-blocks share ONE activation scale.",
@@ -5174,6 +5496,10 @@ window.DEEPSEEK_V4_TUTORIAL = {
           "tagline": "激活 scale 每 128、权重 scale 每 32,K 方向对齐。",
           "difficulty": "进阶",
           "summary": "FP4 GEMM 的关键:激活 scale 粒度为 128 (沿 K),权重 scale 粒度为 32 (沿 K);kernel 在 K 循环里用不同的粒度索引:权重按 `kk // block_k`,激活按 `kk // (block_k * n_sub)`。",
+          "source_mapping": {
+            "real": "`fp4_gemm_kernel` (`kernel.py:441-515`) 是个 TileLang kernel,做的是 FP8(act) × FP4(weight) GEMM。它一次加载 `[block_N, 32]` 的 FP4 子块,把 FP4 通过 FP32 转到 FP8,跑 FP8×FP8 的 `T.gemm`,然后在第二个累加器里同时乘上激活 scale(每 128-K 一个)和权重 scale(每 32-K 一个)。由 `n_sub = act_group_size // block_K = 4` 可知,每 4 个权重子块共享一个激活 scale。",
+            "stub": "三层纯 Python 循环复刻 K 轴算术 —— *只复刻这一部分*:`act_group = kk // (block_k * n_sub)`、`weight_group = kk // block_k`。没有 FP4 打包、没有 FP4→FP8 cast、也没有真实 GEMM —— 练习只为验证你能不能写对 kernel 需要的 *索引算术*。"
+          },
           "what_you_learn": [
             "`n_sub = act_group_size // block_K = 4` —— 激活的一个 scale 覆盖 4 个权重块。",
             "为什么 FP4 → FP8 的 cast 要经过 FP32 —— C++ 重载消歧。",
